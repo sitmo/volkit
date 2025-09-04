@@ -10,7 +10,7 @@ author = "Thijs van den Berg"
 copyright = f"{datetime.now():%Y}, {author}"
 
 extensions = [
-    "myst_nb",  # executable Markdown notebooks
+    "myst_nb",
     "sphinx_copybutton",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -19,8 +19,8 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
-    "sphinx.ext.mathjax",
 ]
+
 source_suffix = {
     ".rst": "restructuredtext",
     ".ipynb": "myst-nb",
@@ -67,15 +67,15 @@ myst_heading_anchors = 3
 myst_enable_extensions = [
     "deflist",
     "colon_fence",
-    "dollarmath",  # <- add this
-    "amsmath",  # optional but nice
+    "dollarmath",
+    "amsmath",
 ]
 
 # Cross-links to external docs
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", {}),
-    "numpy": ("https://numpy.org/doc/stable/", {}),
-    "scipy": ("https://docs.scipy.org/doc/scipy/", {}),
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
 }
 
 
