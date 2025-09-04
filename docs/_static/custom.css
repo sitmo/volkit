@@ -1,0 +1,27 @@
+/* Dark-mode fix for notebook outputs rendered by myst-nb/Furo */
+
+/* Explicit dark mode (user selected “dark”) */
+body[data-theme="dark"] .cell_output table td,
+body[data-theme="dark"] .cell_output table th {
+  color: var(--color-foreground-primary) !important;
+}
+body[data-theme="dark"] .cell_output tbody tr:nth-child(2n+1) {
+  background: var(--color-background-secondary) !important;
+}
+body[data-theme="dark"] .cell_output tbody tr:nth-child(2n) {
+  background: var(--color-background-primary) !important;
+}
+
+/* Auto mode when OS is dark */
+@media (prefers-color-scheme: dark) {
+  body[data-theme="auto"] .cell_output table td,
+  body[data-theme="auto"] .cell_output table th {
+    color: var(--color-foreground-primary) !important;
+  }
+  body[data-theme="auto"] .cell_output tbody tr:nth-child(2n+1) {
+    background: var(--color-background-secondary) !important;
+  }
+  body[data-theme="auto"] .cell_output tbody tr:nth-child(2n) {
+    background: var(--color-background-primary) !important;
+  }
+}
