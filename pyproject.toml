@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "volkit"
-version = "0.0.2"
+version = "0.0.3"
 description = "Volatility Modelling Toolkit"
 authors = ["Thijs van den Berg <thijs@sitmo.com>"]
 license = "BSD-3-Clause"
