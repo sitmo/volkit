@@ -19,7 +19,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
-    "sphinx.ext.mathjax"
+    "sphinx.ext.mathjax",
 ]
 source_suffix = {
     ".rst": "restructuredtext",
@@ -67,8 +67,8 @@ myst_heading_anchors = 3
 myst_enable_extensions = [
     "deflist",
     "colon_fence",
-    "dollarmath",           # <- add this
-    "amsmath",              # optional but nice
+    "dollarmath",  # <- add this
+    "amsmath",  # optional but nice
 ]
 
 # Cross-links to external docs

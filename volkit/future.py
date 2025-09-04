@@ -25,7 +25,6 @@ import numpy as np
 from scipy.stats import norm
 
 __all__ = [
-    "parse_cp",
     "price_euro_future",
     "delta_euro_future",
     "gamma_euro_future",
@@ -41,8 +40,10 @@ __all__ = [
 
 # ---------- utils ----------
 
+
 def _broadcast_shape(*xs):
     return np.broadcast(*[np.asarray(x) for x in xs]).shape
+
 
 def _parse_cp(cp, target_shape=None):
     """
@@ -90,6 +91,7 @@ def _parse_cp(cp, target_shape=None):
         out = np.broadcast_to(out, target_shape)
     return out
 
+
 def _prep(F, K, T, r, sigma, cp):
     """
     Common pre-computation and broadcasting for Black-76 on futures.
@@ -117,7 +119,9 @@ def _prep(F, K, T, r, sigma, cp):
     df = np.exp(-r * T)
     return F, K, T, r, sigma, cp, sqrtT, a, d1, d2, df
 
+
 # ---------- price ----------
+
 
 def price_euro_future(F, K, T, r, sigma, cp=1):
     """
@@ -146,7 +150,9 @@ def price_euro_future(F, K, T, r, sigma, cp=1):
     F, K, T, r, sigma, cp, _, _, d1, d2, df = _prep(F, K, T, r, sigma, cp)
     return df * (cp * F * norm.cdf(cp * d1) - cp * K * norm.cdf(cp * d2))
 
+
 # ---------- greeks ----------
+
 
 def delta_euro_future(F, K, T, r, sigma, cp=1):
     """
@@ -160,6 +166,7 @@ def delta_euro_future(F, K, T, r, sigma, cp=1):
     F, K, T, r, sigma, cp, _, _, d1, _, df = _prep(F, K, T, r, sigma, cp)
     return df * cp * norm.cdf(cp * d1)
 
+
 def gamma_euro_future(F, K, T, r, sigma, cp=1):
     """
     Futures gamma ∂²V/∂F².
@@ -172,6 +179,7 @@ def gamma_euro_future(F, K, T, r, sigma, cp=1):
     F, K, T, r, sigma, cp, _, a, d1, _, df = _prep(F, K, T, r, sigma, cp)
     return df * norm.pdf(d1) / (F * a)
 
+
 def vega_euro_future(F, K, T, r, sigma, cp=1):
     """
     Vega ∂V/∂σ (per 1.00 volatility, not per 1%).
@@ -183,6 +191,7 @@ def vega_euro_future(F, K, T, r, sigma, cp=1):
     """
     F, K, T, r, sigma, cp, sqrtT, _, d1, _, df = _prep(F, K, T, r, sigma, cp)
     return df * F * norm.pdf(d1) * sqrtT
+
 
 def theta_euro_future(F, K, T, r, sigma, cp=1):
     """
@@ -198,6 +207,7 @@ def theta_euro_future(F, K, T, r, sigma, cp=1):
     discount = -r * price_euro_future(F, K, T, r, sigma, cp)
     return time_decay + discount
 
+
 def rho_euro_future(F, K, T, r, sigma, cp=1):
     """
     Rho ∂V/∂r (assumes F independent of r).
@@ -209,6 +219,7 @@ def rho_euro_future(F, K, T, r, sigma, cp=1):
     """
     V = price_euro_future(F, K, T, r, sigma, cp)
     return -T * V
+
 
 def dual_delta_euro_future(F, K, T, r, sigma, cp=1):
     """
@@ -222,6 +233,7 @@ def dual_delta_euro_future(F, K, T, r, sigma, cp=1):
     F, K, T, r, sigma, cp, _, _, _, d2, df = _prep(F, K, T, r, sigma, cp)
     return -df * cp * norm.cdf(cp * d2)
 
+
 def vanna_euro_future(F, K, T, r, sigma, cp=1):
     """
     Vanna ∂²V/(∂F ∂σ).
@@ -233,6 +245,7 @@ def vanna_euro_future(F, K, T, r, sigma, cp=1):
     """
     F, K, T, r, sigma, cp, _, _, d1, d2, df = _prep(F, K, T, r, sigma, cp)
     return df * norm.pdf(d1) * (-d2 / np.maximum(sigma, 1e-16))
+
 
 def vomma_euro_future(F, K, T, r, sigma, cp=1):
     """
@@ -247,6 +260,7 @@ def vomma_euro_future(F, K, T, r, sigma, cp=1):
     vega = df * F * norm.pdf(d1) * sqrtT
     return vega * d1 * d2 / np.maximum(sigma, 1e-16)
 
+
 def lambda_euro_future(F, K, T, r, sigma, cp=1):
     """
     Elasticity (leverage) λ = (F/V) * delta.
@@ -257,11 +271,17 @@ def lambda_euro_future(F, K, T, r, sigma, cp=1):
         Elasticity with broadcasted shape.
     """
     V = price_euro_future(F, K, T, r, sigma, cp)
-    return (np.asarray(F, float) / np.maximum(V, 1e-16)) * delta_euro_future(F, K, T, r, sigma, cp)
+    return (np.asarray(F, float) / np.maximum(V, 1e-16)) * delta_euro_future(
+        F, K, T, r, sigma, cp
+    )
+
 
 # ---------- implied volatility ----------
 
-def iv_euro_future(C, F, K, T, r, cp=1, tol=1e-8, max_iter=100, price_tol=1e-10, sigma_max=10.0):
+
+def iv_euro_future(
+    C, F, K, T, r, cp=1, tol=1e-8, max_iter=100, price_tol=1e-10, sigma_max=10.0
+):
     """
     Implied Black volatility for European options on futures (bisection).
 
@@ -363,7 +383,6 @@ def iv_euro_future(C, F, K, T, r, cp=1, tol=1e-8, max_iter=100, price_tol=1e-10,
         p_all = price_euro_future(F, K, T, r, iv, cp)
         step_all = (p_all - C) / np.maximum(vega, 1e-16)
         iv = np.where(good, np.clip(iv - step_all, 0.0, sigma_max), iv)
-
 
     out[solve] = iv[solve]
     return out
