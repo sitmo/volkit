@@ -15,4 +15,3 @@ pip install volkit
 - NumPy, SciPy, scikit‑learn (installed automatically)
 - For the example plots: Matplotlib
 
-## Quick start

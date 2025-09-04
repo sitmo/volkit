@@ -347,14 +347,14 @@ def iv_euro_future(
 
     # grow hi
     grow = solve.copy()
-    for _ in range(50):
-        if not np.any(grow):
-            break
+    it = 0
+    while np.any(grow) and it < 50:
         p = price_euro_future(F, K, T, r, hi, cp)
         need = (p < C - price_tol) & grow
         hi = np.where(need, np.minimum(hi * 2.0, sigma_max), hi)
         done = (~need) | (hi >= sigma_max - 1e-12)
         grow = grow & ~done
+        it += 1
 
     # fail if still too cheap
     fail = solve & (price_euro_future(F, K, T, r, hi, cp) < C - price_tol)
@@ -379,10 +379,10 @@ def iv_euro_future(
     # Newton polish where vega is informative
     vega = vega_euro_future(F, K, T, r, iv, cp)
     good = solve & (vega > 1e-12)
-    if np.any(good):
-        p_all = price_euro_future(F, K, T, r, iv, cp)
-        step_all = (p_all - C) / np.maximum(vega, 1e-16)
-        iv = np.where(good, np.clip(iv - step_all, 0.0, sigma_max), iv)
+    # Always compute; no-ops where ~good
+    p_all = price_euro_future(F, K, T, r, iv, cp)
+    step_all = (p_all - C) / np.maximum(vega, 1e-16)
+    iv = np.where(good, np.clip(iv - step_all, 0.0, sigma_max), iv)
 
     out[solve] = iv[solve]
     return out

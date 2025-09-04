@@ -119,7 +119,7 @@ def test_vega(p):
 @pytest.mark.parametrize("p", CASES)
 def test_theta_calendar(p):
     # slightly larger step + looser tolerance for robustness
-    t = max(1e-3 * max(p["T"], 1.0), 1e-4)
+    t = max(1e-4 * max(p["T"], 1.0), 1e-5)
     ana = theta_euro_future(**p)  # calendar theta (dV/dt)
     num = n_theta_calendar(p["F"], p["K"], p["T"], p["r"], p["sigma"], p["cp"], t)
     np.testing.assert_allclose(ana, num, rtol=5e-2, atol=5e-4)

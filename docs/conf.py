@@ -5,6 +5,7 @@ from datetime import datetime
 # Ensure package import works in executed notebooks
 sys.path.insert(0, os.path.abspath(".."))
 
+
 project = "volkit"
 author = "Thijs van den Berg"
 copyright = f"{datetime.now():%Y}, {author}"
@@ -20,6 +21,11 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",
 ]
+
+# Force the inline backend during docs builds
+os.environ.pop("MPLBACKEND", None)  # clear any accidental override
+os.environ["MPLBACKEND"] = "module://matplotlib_inline.backend_inline"
+
 
 source_suffix = {
     ".rst": "restructuredtext",
@@ -41,10 +47,6 @@ html_css_files = ["custom.css"]
 
 # We want warnings if execution fails
 nb_execution_raise_on_error = True
-
-# Keep the matplotlib backend non-interactive for headless builds
-os.environ.setdefault("MPLBACKEND", "Agg")
-
 
 autosummary_generate = True
 autodoc_default_options = {
@@ -86,3 +88,4 @@ mathjax3_config = {
         "displayMath": [["$$", "$$"], ["\\[", "\\]"]],
     }
 }
+

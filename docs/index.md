@@ -12,17 +12,6 @@
 ```bash
 pip install volkit
 ```
-
-```{toctree}
-:caption: Examples
-:maxdepth: 1
-
-A Table of Option Prices <examples/strikes_table>
-Greeks: analytic vs numeric <examples/greeks_demo>
-Broadcasting Basics <examples/broadcasting>
-
-```
-
 ```{toctree}
 :hidden:
 :maxdepth: 2
@@ -30,6 +19,19 @@ Broadcasting Basics <examples/broadcasting>
 getting-started
 api/index
 ```
+
+
+```{toctree}
+:caption: Examples
+:maxdepth: 1
+
+Option Prices Table <examples/strikes_table>
+Greeks: Analytic vs Numeric <examples/greeks_demo>
+Greeks: Surface Plots <examples/greeks_surfaces>
+Broadcasting Basics <examples/broadcasting>
+
+```
+
 
 ## Getting started
 See {doc}`getting-started`.
