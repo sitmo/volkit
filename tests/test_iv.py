@@ -68,11 +68,11 @@ def test_iv_bisection_runs_to_max_iter_without_tight():
     np.testing.assert_allclose(iv, sigma_true, rtol=5e-2, atol=5e-3)
 
 
-
 def test_cp_invalid_integer_raises_valueerror():
     # triggers: "cp integer must be +1 or -1"
     with pytest.raises(ValueError, match=r"cp integer must be \+1 or -1"):
         price_euro_future(100.0, 100.0, 1.0, 0.01, 0.2, cp=np.int64(2))
+
 
 def test_cp_invalid_string_raises_valueerror():
     # triggers: "cp must be +1/-1 or 'c'/'call'/'p'/'put'"

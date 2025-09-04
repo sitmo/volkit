@@ -1,7 +1,7 @@
 # tests/test_iv_and_utils.py
 import numpy as np
 
-from volkit.future import _parse_cp, price_euro_future, iv_euro_future
+from volkit.future import _parse_cp
 
 
 def test_parse_cp_values_and_broadcast():
@@ -10,4 +10,3 @@ def test_parse_cp_values_and_broadcast():
     b = _parse_cp("call", target_shape=(2, 3))
     assert b.shape == (2, 3)
     assert np.all(b == 1)
-

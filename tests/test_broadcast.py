@@ -2,7 +2,6 @@
 import numpy as np
 import pytest
 
-from volkit import price_euro_future
 from volkit.future import (
     price_euro_future as price_fn,
     delta_euro_future,
@@ -23,12 +22,12 @@ from volkit.future import (
 BROADCAST_CASES = [
     # (3,4) from (3,1) x (1,4), cp as (3,1), T & r scalars
     {
-        "F": lambda: np.array([[90.0], [100.0], [110.0]]),        # (3,1)
-        "K": lambda: np.array([[80.0, 90.0, 100.0, 120.0]]),      # (1,4)
-        "T": lambda: 0.75,                                        # scalar
-        "r": lambda: 0.02,                                        # scalar
-        "sigma": lambda: np.array([[0.15], [0.20], [0.25]]),      # (3,1)
-        "cp": lambda: np.array([[1], [-1], [1]]),                 # (3,1)
+        "F": lambda: np.array([[90.0], [100.0], [110.0]]),  # (3,1)
+        "K": lambda: np.array([[80.0, 90.0, 100.0, 120.0]]),  # (1,4)
+        "T": lambda: 0.75,  # scalar
+        "r": lambda: 0.02,  # scalar
+        "sigma": lambda: np.array([[0.15], [0.20], [0.25]]),  # (3,1)
+        "cp": lambda: np.array([[1], [-1], [1]]),  # (3,1)
     },
     # Same shapes, cp scalar
     {
@@ -41,19 +40,19 @@ BROADCAST_CASES = [
     },
     # 3D broadcast (2,3,4) from (2,1,1) x (1,3,1) x (1,1,4), cp (2,1,1)
     {
-        "F": lambda: np.array([[[95.0]], [[105.0]]]),             # (2,1,1)
-        "K": lambda: np.array([[[90.0], [100.0], [110.0]]]),      # (1,3,1)
-        "T": lambda: np.array([[[0.5, 1.0, 1.5, 2.0]]]),          # (1,1,4)
-        "r": lambda: np.array([[[0.0]]]),                         # (1,1,1)
-        "sigma": lambda: 0.2,                                     # scalar
-        "cp": lambda: np.array([[[1]], [[-1]]]),                  # (2,1,1)
+        "F": lambda: np.array([[[95.0]], [[105.0]]]),  # (2,1,1)
+        "K": lambda: np.array([[[90.0], [100.0], [110.0]]]),  # (1,3,1)
+        "T": lambda: np.array([[[0.5, 1.0, 1.5, 2.0]]]),  # (1,1,4)
+        "r": lambda: np.array([[[0.0]]]),  # (1,1,1)
+        "sigma": lambda: 0.2,  # scalar
+        "cp": lambda: np.array([[[1]], [[-1]]]),  # (2,1,1)
     },
     # (6,) vectors, cp alternating
     {
-        "F": lambda: 100.0,                                       # scalar
+        "F": lambda: 100.0,  # scalar
         "K": lambda: np.linspace(80, 120, 6),
         "T": lambda: np.linspace(0.1, 1.5, 6),
-        "r": lambda: 0.03,                                        # scalar
+        "r": lambda: 0.03,  # scalar
         "sigma": lambda: np.linspace(0.12, 0.35, 6),
         "cp": lambda: np.array([1, -1, 1, -1, 1, -1]),
     },
@@ -84,7 +83,9 @@ def _broadcast_equivalence_check(fn, F, K, T, r, sigma, cp, rtol=1e-12, atol=1e-
     # Element-wise scalar calls
     expected = np.empty(shape, dtype=float)
     for idx in np.ndindex(shape):
-        expected[idx] = float(fn(F2[idx], K2[idx], T2[idx], R2[idx], S2[idx], int(CP2[idx])))
+        expected[idx] = float(
+            fn(F2[idx], K2[idx], T2[idx], R2[idx], S2[idx], int(CP2[idx]))
+        )
 
     np.testing.assert_allclose(out, expected, rtol=rtol, atol=atol)
 
@@ -136,7 +137,9 @@ def test_greeks_broadcast_shape_and_equivalence(case, fn):
 @pytest.mark.parametrize("case_id", IV_CASE_IDS)
 def test_iv_broadcast_shape_and_equivalence(case_id):
     case = BROADCAST_CASES[case_id]
-    F, K, T, r, sigma_true, cp = (case[k]() for k in ["F", "K", "T", "r", "sigma", "cp"])
+    F, K, T, r, sigma_true, cp = (
+        case[k]() for k in ["F", "K", "T", "r", "sigma", "cp"]
+    )
 
     # Ensure sigma_true not too small; keep it moderate and positive
     sigma_true = np.asarray(sigma_true, float)
@@ -163,7 +166,14 @@ def test_iv_broadcast_shape_and_equivalence(case_id):
     for idx in np.ndindex(shape):
         C_ = float(price_fn(F2[idx], K2[idx], T2[idx], R2[idx], S2[idx], int(CP2[idx])))
         expected[idx] = float(
-            iv_euro_future(C_, float(F2[idx]), float(K2[idx]), float(T2[idx]), float(R2[idx]), int(CP2[idx]))
+            iv_euro_future(
+                C_,
+                float(F2[idx]),
+                float(K2[idx]),
+                float(T2[idx]),
+                float(R2[idx]),
+                int(CP2[idx]),
+            )
         )
 
     # Equivalence (same solver on same scalar inputs)

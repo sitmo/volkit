@@ -88,4 +88,3 @@ mathjax3_config = {
         "displayMath": [["$$", "$$"], ["\\[", "\\]"]],
     }
 }
-
