@@ -31,7 +31,8 @@ api/index
 :caption: Examples
 :maxdepth: 1
 
-Theoretical Option Prices Table <examples/strikes_table>
+Call and Put Price Table <examples/strikes_table>
+Price Table with all Greeks <examples/strikes_table_with_greeks>
 Greeks: Analytic vs Numeric <examples/greeks_demo>
 Greeks: Surface Plots <examples/greeks_surfaces>
 Broadcasting Basics <examples/broadcasting>
