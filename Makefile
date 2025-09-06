@@ -1,4 +1,4 @@
-.PHONY: patch minor major precommit docs test install
+.PHONY: patch minor major precommit docs test pi
 SHELL := /bin/bash
 
 # Run pre-commit once to apply fixes, then once to verify; abort on failure.
@@ -48,5 +48,5 @@ docs:
 test:
 	poetry run pytest --cov=volkit --cov-report=term-missing
 
-install: 
-   poetry install --with dev -E docs
+install:
+	poetry install --with dev -E docs
