@@ -1,17 +1,19 @@
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class ImpliedFutureResult:
     """Compact result for implied forward/discount from quotes."""
-    F: float       # point forward (mid-band)
-    F_bid: float   # lower bound on forward
-    F_ask: float   # upper bound on forward
-    D_min: float   # lower bound on discount factor (D = e^{-rT})
-    D_max: float   # upper bound on discount factor
+
+    F: float  # point forward (mid-band)
+    F_bid: float  # lower bound on forward
+    F_ask: float  # upper bound on forward
+    D_min: float  # lower bound on discount factor (D = e^{-rT})
+    D_max: float  # upper bound on discount factor
 
     def __post_init__(self):
         # Ensure nice printing: force built-in floats (not numpy scalars)
-        object.__setattr__(self, "F",     float(self.F))
+        object.__setattr__(self, "F", float(self.F))
         object.__setattr__(self, "F_bid", float(self.F_bid))
         object.__setattr__(self, "F_ask", float(self.F_ask))
         object.__setattr__(self, "D_min", float(self.D_min))
@@ -45,6 +47,10 @@ class ImpliedFutureResult:
 
     # Optional convenience
     def to_dict(self) -> dict:
-        return dict(F=self.F, F_bid=self.F_bid, F_ask=self.F_ask,
-                    D_min=self.D_min, D_max=self.D_max)
-
+        return dict(
+            F=self.F,
+            F_bid=self.F_bid,
+            F_ask=self.F_ask,
+            D_min=self.D_min,
+            D_max=self.D_max,
+        )

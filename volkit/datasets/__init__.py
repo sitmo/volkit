@@ -2,6 +2,7 @@
 import os
 import pandas as pd
 
+
 def spxw(min_vol: int = 0, D: int | None = None) -> pd.DataFrame:
     """
     Load a sample SPXW options slice and apply simple filters.

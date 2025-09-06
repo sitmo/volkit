@@ -7,16 +7,17 @@ import numpy as np
 from volkit.implied.future_res import ImpliedFutureResult
 from volkit.implied.future_plot import implied_future_from_option_quotes_plot
 
+
 def implied_future_from_option_quotes(
     K: np.ndarray,
     call_bid: np.ndarray,
     call_ask: np.ndarray,
-    put_bid:  np.ndarray,
-    put_ask:  np.ndarray,
+    put_bid: np.ndarray,
+    put_ask: np.ndarray,
     *,
     eps: float = 1e-12,
     plot=False,
-    ax=None
+    ax=None,
 ) -> Tuple[Optional[ImpliedFutureResult], np.ndarray]:
     """
     Robust single-expiry inference with minimal exclusions + max-width forward band.
@@ -36,21 +37,30 @@ def implied_future_from_option_quotes(
     valid_mask_full = np.zeros(n0, dtype=bool)  # will fill at the end
 
     # -- 0) Basic filtering: need finite quotes on all four sides
-    K0  = np.asarray(K, float)
+    K0 = np.asarray(K, float)
     Cb0 = np.asarray(call_bid, float)
     Ca0 = np.asarray(call_ask, float)
     Pb0 = np.asarray(put_bid, float)
     Pa0 = np.asarray(put_ask, float)
 
-    finite = np.isfinite(K0) & np.isfinite(Cb0) & np.isfinite(Ca0) & np.isfinite(Pb0) & np.isfinite(Pa0)
+    finite = (
+        np.isfinite(K0)
+        & np.isfinite(Cb0)
+        & np.isfinite(Ca0)
+        & np.isfinite(Pb0)
+        & np.isfinite(Pa0)
+    )
     if finite.sum() < 2:
         # no feasible 2+ strike subset
         return None, valid_mask_full
 
     # Extract finite rows and remember mapping to original indices
-    idx_finite = np.nonzero(finite)[0]                 # original -> finite
-    K  = K0[idx_finite];  Cb = Cb0[idx_finite];  Ca = Ca0[idx_finite]
-    Pb = Pb0[idx_finite]; Pa = Pa0[idx_finite]
+    idx_finite = np.nonzero(finite)[0]  # original -> finite
+    K = K0[idx_finite]
+    Cb = Cb0[idx_finite]
+    Ca = Ca0[idx_finite]
+    Pb = Pb0[idx_finite]
+    Pa = Pa0[idx_finite]
 
     # Require at least two *distinct* strikes
     if np.unique(K).size < 2:
@@ -74,7 +84,9 @@ def implied_future_from_option_quotes(
 
     # -- 2) Step 1: minimal exclusions via maximum overlap depth
     best_depth = -1
-    candidate_subsets: Dict[Tuple[int, ...], List[float]] = {}  # subset (in sorted space) -> list of D
+    candidate_subsets: Dict[Tuple[int, ...], List[float]] = (
+        {}
+    )  # subset (in sorted space) -> list of D
     for D in eval_Ds:
         a, b = _intervals_at_D(K, L, U, D)
         depth, x_star, keep_idx_sorted = _max_overlap_subset_at_D(a, b, eps=eps)
@@ -103,7 +115,9 @@ def implied_future_from_option_quotes(
         if D_interval is None:
             continue
         D_lo, D_hi = D_interval
-        D_cands = _width_candidate_discounts_for_subset(K, L, U, S_sorted, D_lo, D_hi, eps=eps)
+        D_cands = _width_candidate_discounts_for_subset(
+            K, L, U, S_sorted, D_lo, D_hi, eps=eps
+        )
         if D_cands.size == 0:
             continue
 
@@ -112,7 +126,9 @@ def implied_future_from_option_quotes(
         for D in D_cands:
             F_bid, F_ask = _forward_band_for_subset_at_D(K, L, U, S_sorted, D)
             w = F_ask - F_bid
-            if w > w_best + 1e-15 or (abs(w - w_best) <= 1e-15 and (pick is None or D < pick[0])):
+            if w > w_best + 1e-15 or (
+                abs(w - w_best) <= 1e-15 and (pick is None or D < pick[0])
+            ):
                 w_best = w
                 pick = (D, F_bid, F_ask)
 
@@ -120,8 +136,11 @@ def implied_future_from_option_quotes(
             continue
 
         D_star, F_bid_star, F_ask_star = pick
-        if (best is None) or (w_best > best[0] + 1e-15) or \
-           (abs(w_best - best[0]) <= 1e-15 and D_star < best[1]):
+        if (
+            (best is None)
+            or (w_best > best[0] + 1e-15)
+            or (abs(w_best - best[0]) <= 1e-15 and D_star < best[1])
+        ):
             # Compute D_min/D_max for the chosen subset (already have it)
             best = (w_best, D_star, F_bid_star, F_ask_star, D_lo, D_hi, key_sorted)
 
@@ -135,9 +154,13 @@ def implied_future_from_option_quotes(
     valid_mask_full[keep_orig] = True
 
     F_star = 0.5 * (F_bid_star + F_ask_star)
-    result = ImpliedFutureResult(F=F_star, F_bid=F_bid_star, F_ask=F_ask_star, D_min=D_lo, D_max=D_hi)
+    result = ImpliedFutureResult(
+        F=F_star, F_bid=F_bid_star, F_ask=F_ask_star, D_min=D_lo, D_max=D_hi
+    )
     if plot:
-        implied_future_from_option_quotes_plot(K0, Cb0, Ca0, Pb0, Pa0, result, valid_mask_full, ax)
+        implied_future_from_option_quotes_plot(
+            K0, Cb0, Ca0, Pb0, Pa0, result, valid_mask_full, ax
+        )
     return result, valid_mask_full
 
 
@@ -145,13 +168,21 @@ def implied_future_from_option_quotes(
 # Helpers
 # ----------------------------
 
-def _intervals_at_D(K: np.ndarray, L: np.ndarray, U: np.ndarray, D: float) -> Tuple[np.ndarray, np.ndarray]:
+
+def _intervals_at_D(
+    K: np.ndarray, L: np.ndarray, U: np.ndarray, D: float
+) -> Tuple[np.ndarray, np.ndarray]:
     a = D * K + L
     b = D * K + U
     return a, b
 
-def _critical_discounts(K: np.ndarray, L: np.ndarray, U: np.ndarray, eps: float = 1e-12) -> np.ndarray:
-    K = np.asarray(K); L = np.asarray(L); U = np.asarray(U)
+
+def _critical_discounts(
+    K: np.ndarray, L: np.ndarray, U: np.ndarray, eps: float = 1e-12
+) -> np.ndarray:
+    K = np.asarray(K)
+    L = np.asarray(L)
+    U = np.asarray(U)
     n = len(K)
     cand: List[float] = []
     for i in range(n):
@@ -161,15 +192,16 @@ def _critical_discounts(K: np.ndarray, L: np.ndarray, U: np.ndarray, eps: float 
             denom = K[i] - K[j]
             if abs(denom) < eps:
                 continue
-            D1 = (L[j] - L[i]) / denom     # a_i = a_j
-            D2 = (U[j] - U[i]) / denom     # b_i = b_j
-            D3 = (U[j] - L[i]) / denom     # a_i = b_j
+            D1 = (L[j] - L[i]) / denom  # a_i = a_j
+            D2 = (U[j] - U[i]) / denom  # b_i = b_j
+            D3 = (U[j] - L[i]) / denom  # a_i = b_j
             for D in (D1, D2, D3):
                 if np.isfinite(D) and (D > 0):
                     cand.append(float(D))
     if not cand:
         return np.array([], dtype=float)
     return np.array(sorted(set(cand)), dtype=float)
+
 
 def _with_midpoints(Ds: np.ndarray) -> np.ndarray:
     if Ds.size == 0:
@@ -181,7 +213,10 @@ def _with_midpoints(Ds: np.ndarray) -> np.ndarray:
     mask[1:] = np.abs(np.diff(out)) > 1e-15
     return out[mask]
 
-def _max_overlap_subset_at_D(a: np.ndarray, b: np.ndarray, eps: float = 1e-12) -> Tuple[int, float, np.ndarray]:
+
+def _max_overlap_subset_at_D(
+    a: np.ndarray, b: np.ndarray, eps: float = 1e-12
+) -> Tuple[int, float, np.ndarray]:
     n = len(a)
     events: List[Tuple[float, int, int]] = []
     for i in range(n):
@@ -210,6 +245,7 @@ def _max_overlap_subset_at_D(a: np.ndarray, b: np.ndarray, eps: float = 1e-12) -
     S = np.where((a <= x_star + eps) & (b + eps >= x_star))[0]
     return best_depth, x_star, S
 
+
 def _feasible_D_interval_for_subset(
     K: np.ndarray, L: np.ndarray, U: np.ndarray, S: np.ndarray, eps: float = 1e-12
 ) -> Optional[Tuple[float, float]]:
@@ -234,9 +270,15 @@ def _feasible_D_interval_for_subset(
         return None
     return float(D_lo), float(D_hi)
 
+
 def _width_candidate_discounts_for_subset(
-    K: np.ndarray, L: np.ndarray, U: np.ndarray, S: np.ndarray,
-    D_lo: float, D_hi: float, eps: float = 1e-12
+    K: np.ndarray,
+    L: np.ndarray,
+    U: np.ndarray,
+    S: np.ndarray,
+    D_lo: float,
+    D_hi: float,
+    eps: float = 1e-12,
 ) -> np.ndarray:
     Ks, Ls, Us = K[S], L[S], U[S]
     cand: List[float] = [D_lo, D_hi]
@@ -256,6 +298,7 @@ def _width_candidate_discounts_for_subset(
         Ds = np.unique(np.concatenate([Ds, mids]))
         Ds.sort()
     return Ds
+
 
 def _forward_band_for_subset_at_D(
     K: np.ndarray, L: np.ndarray, U: np.ndarray, S: np.ndarray, D: float
