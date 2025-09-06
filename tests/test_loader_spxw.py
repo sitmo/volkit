@@ -1,5 +1,4 @@
 # tests/test_loader_spxw.py
-import os
 from pathlib import Path
 
 import numpy as np
@@ -28,10 +27,10 @@ def _make_csv(tmp_path: Path) -> Path:
     # D: D=7, C_vol<100        -> excluded by volume filter
     rows = [
         # Date,       ExpDate,    Strike, CallBid, CallAsk, CallVolume, PutBid, PutAsk, PutVolume
-        ["2025-01-01", "2025-01-08", 4700,   10.0,   10.5,      100,     9.5,   10.0,      100],  # A
-        ["2025-01-01", "2025-01-08", 4725,    7.0,    7.5,      150,     6.0,    6.5,       90],  # B
-        ["2025-01-01", "2025-01-11", 4750,    5.0,    5.5,      200,     5.0,    5.5,      200],  # C
-        ["2025-01-01", "2025-01-08", 4775,    3.0,    3.5,       20,     3.0,    3.5,      500],  # D
+        ["2025-01-01", "2025-01-08", 4700, 10.0, 10.5, 100, 9.5, 10.0, 100],  # A
+        ["2025-01-01", "2025-01-08", 4725, 7.0, 7.5, 150, 6.0, 6.5, 90],  # B
+        ["2025-01-01", "2025-01-11", 4750, 5.0, 5.5, 200, 5.0, 5.5, 200],  # C
+        ["2025-01-01", "2025-01-08", 4775, 3.0, 3.5, 20, 3.0, 3.5, 500],  # D
     ]
     df = pd.DataFrame(
         rows,
@@ -51,7 +50,9 @@ def _make_csv(tmp_path: Path) -> Path:
 
     # Put a fake file so pkg_dir exists on disk; __file__ will be patched to this.
     fake_module_file = pkg_dir / "loader_spxw.py"
-    fake_module_file.write_text("# fake placeholder; real module is imported from site-packages\n")
+    fake_module_file.write_text(
+        "# fake placeholder; real module is imported from site-packages\n"
+    )
 
     return fake_module_file
 
@@ -73,7 +74,17 @@ def test_load_no_filters_returns_expected_columns_and_values(patch_module_file):
     df = loader_spxw.spxw()
 
     # Exact column order
-    assert list(df.columns) == ["T", "D", "K", "C_bid", "C_ask", "C_vol", "P_bid", "P_ask", "P_vol"]
+    assert list(df.columns) == [
+        "T",
+        "D",
+        "K",
+        "C_bid",
+        "C_ask",
+        "C_vol",
+        "P_bid",
+        "P_ask",
+        "P_vol",
+    ]
 
     # Shape: 4 rows, 9 columns
     assert df.shape == (4, 9)
