@@ -37,4 +37,4 @@ __all__ = [
     "rate_to_discount",
 ]
 
-__version__ = "0.1.5"
+__version__ = "0.1.6"
