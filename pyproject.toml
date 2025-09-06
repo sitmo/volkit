@@ -14,6 +14,7 @@ keywords = ["gaussian mixture", "implied", "volatility"]
 python = ">=3.9,<3.13"
 numpy = "*"
 scipy = "*"
+pandas = "*"
 
 # docs-only, marked optional
 sphinx = { version = ">=7", optional = true }
@@ -22,7 +23,6 @@ furo = { version = ">=2024.8", optional = true }
 sphinx-copybutton = { version = ">=0.5.2", optional = true }
 matplotlib = { version = ">=3.8", optional = true }
 matplotlib-inline = { version = ">=0.1.7", optional = true }
-pandas = {version = "^2.3",  optional = true }
 sphinx-autodoc-typehints = { version = ">=2.2", optional = true }
 
 # --- development tools (installed via --with dev) ---
