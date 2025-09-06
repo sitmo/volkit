@@ -92,6 +92,7 @@ def _parse_cp(cp, target_shape=None):
     return out
 
 
+
 def _prep(F, K, T, r, sigma, cp):
     """
     Common pre-computation and broadcasting for Black-76 on futures.
@@ -102,21 +103,21 @@ def _prep(F, K, T, r, sigma, cp):
         (F, K, T, r, sigma, cp, sqrtT, a, d1, d2, df)
         where a = sigma*sqrtT (floored), df = exp(-r*T).
     """
-    F = np.asarray(F, float)
-    K = np.asarray(K, float)
-    T = np.asarray(T, float)
-    r = np.asarray(r, float)
+    F     = np.asarray(F, float)
+    K     = np.asarray(K, float)
+    T     = np.asarray(T, float)
+    r     = np.asarray(r, float)
     sigma = np.asarray(sigma, float)
+    cp    = _parse_cp(cp)  # should return +1 for call, -1 for put; keeps original shape
 
-    shape = _broadcast_shape(F, K, T, r, sigma)
-    F, K, T, r, sigma = (np.broadcast_to(x, shape) for x in (F, K, T, r, sigma))
-    cp = _parse_cp(cp, target_shape=shape)
+    # Broadcast ALL arrays together. This will yield (5,2) for your example.
+    F, K, T, r, sigma, cp = np.broadcast_arrays(F, K, T, r, sigma, cp)
 
     sqrtT = np.sqrt(np.maximum(T, 0.0))
-    a = np.maximum(sigma * sqrtT, 1e-16)  # avoid division by 0
-    d1 = np.log(F / K) / a + 0.5 * a
-    d2 = d1 - a
-    df = np.exp(-r * T)
+    a     = np.maximum(sigma * sqrtT, 1e-16)     # avoid division by 0
+    d1    = np.log(F / K) / a + 0.5 * a          # (ln(F/K) + 0.5*sigma^2*T) / (sigma*sqrtT)
+    d2    = d1 - a
+    df    = np.exp(-r * T)
     return F, K, T, r, sigma, cp, sqrtT, a, d1, d2, df
 
 
@@ -203,10 +204,9 @@ def theta_euro_future(F, K, T, r, sigma, cp=1):
         Theta with broadcasted shape (per year).
     """
     F, K, T, r, sigma, cp, sqrtT, _, d1, _, df = _prep(F, K, T, r, sigma, cp)
-    time_decay = -df * (F * norm.pdf(d1) * sigma) / (2.0 * np.maximum(sqrtT, 1e-16))
-    discount = -r * price_euro_future(F, K, T, r, sigma, cp)
-    return time_decay + discount
-
+    time_decay = - df * (F * norm.pdf(d1) * sigma) / (2.0 * np.maximum(sqrtT, 1e-16))
+    carry      = + r * price_euro_future(F, K, T, r, sigma, cp)
+    return time_decay + carry
 
 def rho_euro_future(F, K, T, r, sigma, cp=1):
     """

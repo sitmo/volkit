@@ -33,7 +33,8 @@ Option Prices Table <examples/strikes_table>
 Greeks: Analytic vs Numeric <examples/greeks_demo>
 Greeks: Surface Plots <examples/greeks_surfaces>
 Broadcasting Basics <examples/broadcasting>
-Cumputing Implied Futures from Options <examples/implied_future>
+Computing Implied Futures from Options <examples/implied_future>
+Datasets: SPXW <examples/spxw_dataset.ipynb>
 
 ```
 
