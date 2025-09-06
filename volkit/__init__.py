@@ -27,7 +27,7 @@ __all__ = [
     "vomma_euro_future",
     "lambda_euro_future",
     "implied_vol_euro_future",
-    "implied_future_from_option_quotes"
+    "implied_future_from_option_quotes",
 ]
 
 __version__ = "0.1.3"

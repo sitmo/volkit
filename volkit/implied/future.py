@@ -13,6 +13,7 @@ from volkit.implied.future_plot import implied_future_from_option_quotes_plot
 # Public API
 # ======================================================================
 
+
 def implied_future_from_option_quotes(
     K: np.ndarray,
     call_bid: np.ndarray,
@@ -53,7 +54,9 @@ def implied_future_from_option_quotes(
     n0 = len(K)
     mask_out = np.zeros(n0, dtype=bool)
 
-    K0, Cb0, Ca0, Pb0, Pa0, idx_sorted_to_orig = _filter_and_sort_finite(K, call_bid, call_ask, put_bid, put_ask)
+    K0, Cb0, Ca0, Pb0, Pa0, idx_sorted_to_orig = _filter_and_sort_finite(
+        K, call_bid, call_ask, put_bid, put_ask
+    )
     if K0.size < 2:
         return None, mask_out
 
@@ -84,7 +87,9 @@ def implied_future_from_option_quotes(
     # --------------------------------------------------------------------
     # 2) Collect ALL max-overlap subsets grouped by DEPTH across all eval_Ds
     # --------------------------------------------------------------------
-    depths_to_subsets, subset_to_Ds = _collect_subsets_by_depth(K0, L, U, row_valid, eval_Ds, eps=eps)
+    depths_to_subsets, subset_to_Ds = _collect_subsets_by_depth(
+        K0, L, U, row_valid, eval_Ds, eps=eps
+    )
     if not depths_to_subsets:
         # No valid intervals anywhere
         return None, mask_out
@@ -93,7 +98,9 @@ def implied_future_from_option_quotes(
     # 3) Choose subset with fallback: highest depth -> lower depth
     #    (reject duplicate-K subsets; require feasible D interval)
     # ------------------------------------------------------------
-    choice = _choose_subset_with_fallback(K0, L, U, depths_to_subsets, subset_to_Ds, eps=eps)
+    choice = _choose_subset_with_fallback(
+        K0, L, U, depths_to_subsets, subset_to_Ds, eps=eps
+    )
     if choice is None:
         # Nothing feasible across any depth (≥2)
         return None, mask_out
@@ -106,7 +113,7 @@ def implied_future_from_option_quotes(
         F=float(0.5 * (F_bid_star + F_ask_star)),
         F_bid=float(F_bid_star),
         F_ask=float(F_ask_star),
-        D=float((D_lo+D_hi)/2),
+        D=float((D_lo + D_hi) / 2),
         D_min=float(D_lo),
         D_max=float(D_hi),
     )
@@ -122,6 +129,7 @@ def implied_future_from_option_quotes(
 # Helpers (private)
 # ======================================================================
 
+
 def _filter_and_sort_finite(
     K: np.ndarray, Cb: np.ndarray, Ca: np.ndarray, Pb: np.ndarray, Pa: np.ndarray
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -132,25 +140,41 @@ def _filter_and_sort_finite(
     Pb = np.asarray(Pb, float)
     Pa = np.asarray(Pa, float)
 
-    finite = np.isfinite(K) & np.isfinite(Cb) & np.isfinite(Ca) & np.isfinite(Pb) & np.isfinite(Pa)
+    finite = (
+        np.isfinite(K)
+        & np.isfinite(Cb)
+        & np.isfinite(Ca)
+        & np.isfinite(Pb)
+        & np.isfinite(Pa)
+    )
     idx_finite = np.nonzero(finite)[0]
     if idx_finite.size == 0:
         return K[:0], Cb[:0], Ca[:0], Pb[:0], Pa[:0], idx_finite
 
-    Kf, Cbf, Caf, Pbf, Paf = K[idx_finite], Cb[idx_finite], Ca[idx_finite], Pb[idx_finite], Pa[idx_finite]
+    Kf, Cbf, Caf, Pbf, Paf = (
+        K[idx_finite],
+        Cb[idx_finite],
+        Ca[idx_finite],
+        Pb[idx_finite],
+        Pa[idx_finite],
+    )
     order = np.argsort(Kf)
     idx_sorted_to_orig = idx_finite[order]
     return Kf[order], Cbf[order], Caf[order], Pbf[order], Paf[order], idx_sorted_to_orig
 
 
-def _make_LU(Cb: np.ndarray, Ca: np.ndarray, Pb: np.ndarray, Pa: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def _make_LU(
+    Cb: np.ndarray, Ca: np.ndarray, Pb: np.ndarray, Pa: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray]:
     """L = C_bid - P_ask; U = C_ask - P_bid."""
     L = Cb - Pa
     U = Ca - Pb
     return L, U
 
 
-def _critical_discounts(K: np.ndarray, L: np.ndarray, U: np.ndarray, eps: float) -> np.ndarray:
+def _critical_discounts(
+    K: np.ndarray, L: np.ndarray, U: np.ndarray, eps: float
+) -> np.ndarray:
     """
     Event discounts where the sorted order of interval endpoints can change.
     Uses equalities among {a_i, b_i} with a_i = D*K_i + L_i, b_i = D*K_i + U_i.
@@ -189,7 +213,9 @@ def _with_midpoints(Ds: np.ndarray) -> np.ndarray:
     return out[mask]
 
 
-def _intervals_at_D(K: np.ndarray, L: np.ndarray, U: np.ndarray, D: float) -> Tuple[np.ndarray, np.ndarray]:
+def _intervals_at_D(
+    K: np.ndarray, L: np.ndarray, U: np.ndarray, D: float
+) -> Tuple[np.ndarray, np.ndarray]:
     a = D * K + L
     b = D * K + U
     return a, b
@@ -232,7 +258,12 @@ def _max_overlap_subset_at_D(
 
 
 def _collect_subsets_by_depth(
-    K: np.ndarray, L: np.ndarray, U: np.ndarray, row_valid: np.ndarray, eval_Ds: Iterable[float], eps: float
+    K: np.ndarray,
+    L: np.ndarray,
+    U: np.ndarray,
+    row_valid: np.ndarray,
+    eval_Ds: Iterable[float],
+    eps: float,
 ) -> Tuple[Dict[int, List[Tuple[int, ...]]], Dict[Tuple[int, ...], List[float]]]:
     """
     For each D in eval_Ds, take the *maximum-overlap* active set at x* and group by depth.
@@ -290,7 +321,13 @@ def _feasible_D_interval_for_subset(
 
 
 def _width_candidate_discounts_for_subset(
-    K: np.ndarray, L: np.ndarray, U: np.ndarray, S: np.ndarray, D_lo: float, D_hi: float, eps: float
+    K: np.ndarray,
+    L: np.ndarray,
+    U: np.ndarray,
+    S: np.ndarray,
+    D_lo: float,
+    D_hi: float,
+    eps: float,
 ) -> np.ndarray:
     """
     Candidate Ds to check the forward band width on a fixed subset S: endpoints of the
@@ -369,14 +406,18 @@ def _choose_subset_with_fallback(
                 continue
 
             D_lo, D_hi = D_interval
-            D_cands = _width_candidate_discounts_for_subset(K, L, U, S_sorted, D_lo, D_hi, eps=eps)
+            D_cands = _width_candidate_discounts_for_subset(
+                K, L, U, S_sorted, D_lo, D_hi, eps=eps
+            )
             if D_cands.size == 0:
                 continue
 
             for D in D_cands:
                 F_bid, F_ask = _forward_band_for_subset_at_D(K, L, U, S_sorted, D)
                 w = F_ask - F_bid
-                if (w > best_w + 1e-15) or (abs(w - best_w) <= 1e-15 and (best is None or D < best[0])):
+                if (w > best_w + 1e-15) or (
+                    abs(w - best_w) <= 1e-15 and (best is None or D < best[0])
+                ):
                     best_w = w
                     best = (D, F_bid, F_ask, D_lo, D_hi, key)
 

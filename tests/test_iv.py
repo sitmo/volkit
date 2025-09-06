@@ -55,7 +55,9 @@ def test_iv_bisection_early_tight_break():
     # Loose tolerances so 'tight' can be satisfied early (doesn't touch growth/polish paths)
     F, K, T, r, sigma_true = 100.0, 100.0, 0.75, 0.01, 0.20
     C = price_euro_future(F, K, T, r, sigma_true, "call")
-    iv = implied_vol_euro_future(C, F, K, T, r, "call", tol=1e-3, price_tol=1e-4, max_iter=100)
+    iv = implied_vol_euro_future(
+        C, F, K, T, r, "call", tol=1e-3, price_tol=1e-4, max_iter=100
+    )
     np.testing.assert_allclose(iv, sigma_true, rtol=1e-6, atol=1e-8)
 
 
@@ -63,7 +65,9 @@ def test_iv_bisection_runs_to_max_iter_without_tight():
     # Strict tolerances so 'tight' stays False; small max_iter (doesn't touch growth/polish)
     F, K, T, r, sigma_true = 100.0, 100.0, 0.5, 0.01, 0.20
     C = price_euro_future(F, K, T, r, sigma_true, "call")
-    iv = implied_vol_euro_future(C, F, K, T, r, "call", tol=0.0, price_tol=0.0, max_iter=2)
+    iv = implied_vol_euro_future(
+        C, F, K, T, r, "call", tol=0.0, price_tol=0.0, max_iter=2
+    )
     # Coarse accuracy expected
     np.testing.assert_allclose(iv, sigma_true, rtol=5e-2, atol=5e-3)
 

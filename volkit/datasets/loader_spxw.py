@@ -3,6 +3,7 @@ from typing import Optional
 import os
 import pandas as pd
 
+
 def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
     """
     Load a sample SPXW options slice and apply simple filters.
@@ -66,7 +67,7 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
         "ask_size_1545": "ask_size",
         "ask_1545": "ask",
         "trade_volume": "vol",
-        "open_interest": "oi"
+        "open_interest": "oi",
     }
 
     idx = ["quote_date", "expiration", "strike"]
@@ -74,45 +75,37 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
     here = os.path.dirname(__file__)
     csv_path = os.path.join(here, "data/spxw20190626.csv")
 
-    df = pd.read_csv(
-        csv_path,
-        parse_dates=['quote_date', 'expiration']
-    )
+    df = pd.read_csv(csv_path, parse_dates=["quote_date", "expiration"])
 
     # Wide pivot: values × option_type -> single level columns like C_bid, P_ask_size
-    pt = (
-        df.pivot_table(
-            index=idx,
-            columns="option_type",
-            values=list(rename_map.keys()),
-            aggfunc="first",  # or 'last' / np.nanmean etc., if duplicates exist
-        )
-        .sort_index(axis=1)  # optional
-    )
+    pt = df.pivot_table(
+        index=idx,
+        columns="option_type",
+        values=list(rename_map.keys()),
+        aggfunc="first",  # or 'last' / np.nanmean etc., if duplicates exist
+    ).sort_index(
+        axis=1
+    )  # optional
 
     # flatten MultiIndex columns: ('bid_1545','C') -> 'C_bid'
     pt.columns = [
-        f"{opt}_{rename_map[val]}"
-        for (val, opt) in pt.columns.to_flat_index()
+        f"{opt}_{rename_map[val]}" for (val, opt) in pt.columns.to_flat_index()
     ]
 
     pt = pt.reset_index()
 
     # Keep the non-pivot columns (take first if duplicated across C/P rows)
     nonpivot = [
-        "quote_date", "expiration", "strike",
-        "underlying_bid_1545", "underlying_ask_1545",
+        "quote_date",
+        "expiration",
+        "strike",
+        "underlying_bid_1545",
+        "underlying_ask_1545",
     ]
-    base = (
-        df[nonpivot]
-        .drop_duplicates(subset=idx)
-        .groupby(idx, as_index=False)
-        .first()
-    )
+    base = df[nonpivot].drop_duplicates(subset=idx).groupby(idx, as_index=False).first()
 
     # Merge and (optionally) order columns
     out = base.merge(pt, on=idx, how="left")
-
 
     out = out.rename(
         columns={
@@ -123,7 +116,7 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
             "PutBid": "P_bid",
             "PutAsk": "P_ask",
             "PutVolume": "P_vol",
-            "expiration": "expiration_date"
+            "expiration": "expiration_date",
         }
     )
     out["D"] = (out["expiration_date"] - out["quote_date"]).dt.days
@@ -135,6 +128,5 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
 
     # Specific day filter
     if D is not None:
-        out = out[out["D"] == D]    
+        out = out[out["D"] == D]
     return out
-

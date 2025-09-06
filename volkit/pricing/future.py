@@ -34,7 +34,7 @@ __all__ = [
     "dual_delta_euro_future",
     "vanna_euro_future",
     "vomma_euro_future",
-    "lambda_euro_future"
+    "lambda_euro_future",
 ]
 
 # ---------- utils ----------
@@ -273,4 +273,3 @@ def lambda_euro_future(F, K, T, r, sigma, cp=1):
     return (np.asarray(F, float) / np.maximum(V, 1e-16)) * delta_euro_future(
         F, K, T, r, sigma, cp
     )
-

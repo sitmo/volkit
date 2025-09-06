@@ -1,8 +1,21 @@
 # tests/test_implied_future.py
 import numpy as np
-import pytest
 
-from volkit import implied_future_from_option_quotes, price_euro_future
+from volkit import implied_future_from_option_quotes
+import volkit.implied.future as vf
+from volkit.implied.future import (
+    _max_overlap_subset_at_D,
+    _feasible_D_interval_for_subset,
+    _width_candidate_discounts_for_subset,
+    _forward_band_for_subset_at_D,
+    _filter_and_sort_finite,
+    _with_midpoints,
+    _choose_subset_with_fallback,
+)
+
+
+EPS = 1e-12
+
 
 def make_parity_consistent_quotes(K, F, D, s_call=0.4, s_put=0.6):
     """
@@ -29,7 +42,6 @@ def make_parity_consistent_quotes(K, F, D, s_call=0.4, s_put=0.6):
 
 def test_known_forward_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
     # Known setup
-    rng = np.random.default_rng(42)
     K = np.array([3900, 3950, 4000, 4050, 4100, 4150], dtype=float)
 
     F_true = 4025.0
@@ -38,15 +50,18 @@ def test_known_forward_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
     Cb, Ca, Pb, Pa = make_parity_consistent_quotes(K, F_true, D_true, s_c, s_p)
 
     # Inject a NaN row to check finite filtering (should be dropped)
-    K_with_nan   = np.concatenate([K,   [np.nan]])
-    Cb_with_nan  = np.concatenate([Cb,  [np.nan]])
-    Ca_with_nan  = np.concatenate([Ca,  [np.nan]])
-    Pb_with_nan  = np.concatenate([Pb,  [np.nan]])
-    Pa_with_nan  = np.concatenate([Pa,  [np.nan]])
+    K_with_nan = np.concatenate([K, [np.nan]])
+    Cb_with_nan = np.concatenate([Cb, [np.nan]])
+    Ca_with_nan = np.concatenate([Ca, [np.nan]])
+    Pb_with_nan = np.concatenate([Pb, [np.nan]])
+    Pa_with_nan = np.concatenate([Pa, [np.nan]])
 
     # Monkeypatch the plotting function so plot=True path runs without side effects
     import volkit.implied.future as futmod
-    monkeypatch.setattr(futmod, "implied_future_from_option_quotes_plot", lambda *a, **k: None)
+
+    monkeypatch.setattr(
+        futmod, "implied_future_from_option_quotes_plot", lambda *a, **k: None
+    )
 
     result, mask = implied_future_from_option_quotes(
         K_with_nan, Cb_with_nan, Ca_with_nan, Pb_with_nan, Pa_with_nan, plot=True
@@ -82,9 +97,9 @@ def test_arb_row_is_excluded_and_valid_subset_has_overlap():
     # Make the middle strike invalid: enforce L > U by setting Ca << Pb and Pa >> Cb
     j_bad = 1
     Cb[j_bad] = 0.0
-    Ca[j_bad] = -10.0   # ask << bid
+    Ca[j_bad] = -10.0  # ask << bid
     Pb[j_bad] = 10.0
-    Pa[j_bad] = 20.0    # ask >> bid
+    Pa[j_bad] = 20.0  # ask >> bid
     # Now L = Cb - Pa ≈ -20, U = Ca - Pb ≈ -20; with eps it’s safely L > U
 
     result, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
@@ -99,7 +114,6 @@ def test_arb_row_is_excluded_and_valid_subset_has_overlap():
     # Forward still close to true (inferred from the two good rows)
     assert np.isclose(result.F, F_true, atol=1e-8)
     assert result.F_bid <= result.F <= result.F_ask
-
 
 
 def test_duplicate_strikes_only_returns_none_and_empty_mask():
@@ -120,7 +134,7 @@ def test_no_overlap_anywhere_returns_none_and_no_selection():
     K = np.array([4000.0, 4100.0])
     # Make Ca < Cb and Pa > Pb to force L = Cb - Pa > U = Ca - Pb
     Cb = np.array([10.0, 11.0])
-    Ca = np.array([9.0, 10.0])   # ask < bid (pathological but tests robustness)
+    Ca = np.array([9.0, 10.0])  # ask < bid (pathological but tests robustness)
     Pb = np.array([10.0, 10.0])
     Pa = np.array([11.0, 11.0])  # ask > bid (as usual), but with large spread
 
@@ -145,44 +159,39 @@ def test_tiny_input_less_than_two_finite_rows():
     assert mask.shape == K.shape and not mask.any()
 
 
-from volkit.implied.future import (
-    _max_overlap_subset_at_D,
-    _feasible_D_interval_for_subset,
-    _width_candidate_discounts_for_subset,
-    _forward_band_for_subset_at_D,
-)
-
-
 def test__max_overlap_subset_at_D_no_valid_events():
     # All intervals invalid: a_i > b_i
     a = np.array([2.0, 3.0])
     b = np.array([1.0, 2.5])
     row_valid = np.ones_like(a, dtype=bool)
-    depth, x_star, S = _max_overlap_subset_at_D(a, b, row_valid, eps=1e-12)    
+    depth, x_star, S = _max_overlap_subset_at_D(a, b, row_valid, eps=1e-12)
     assert depth == 0
     assert S.size == 0
     assert np.isnan(x_star)
 
+
 def test__feasible_D_interval_for_subset_duplicate_Ks_returns_none():
     K = np.array([100.0, 100.0, 110.0])
-    L = np.array([0.0,   0.0,   0.0])
-    U = np.array([0.2,   0.2,   0.3])
+    L = np.array([0.0, 0.0, 0.0])
+    U = np.array([0.2, 0.2, 0.3])
     S = np.array([0, 1], dtype=int)  # duplicate strikes only
     assert _feasible_D_interval_for_subset(K, L, U, S, eps=1e-12) is None
+
 
 def test__feasible_D_interval_for_subset_inconsistent_bounds_returns_none():
     # Two strikes; choose L/U so (L0-U1)/(K1-K0) > (U0-L1)/(K1-K0)
     K = np.array([100.0, 110.0])
-    L = np.array([6.0,  6.0])    # large lows
-    U = np.array([5.1,  5.0])    # smaller highs
+    L = np.array([6.0, 6.0])  # large lows
+    U = np.array([5.1, 5.0])  # smaller highs
     S = np.array([0, 1], dtype=int)
     out = _feasible_D_interval_for_subset(K, L, U, S, eps=1e-12)
     assert out is None
 
+
 def test__width_candidate_discounts_for_subset_includes_midpoints_and_endpoints():
     K = np.array([100.0, 110.0])
-    L = np.array([0.0,   0.1])
-    U = np.array([0.4,   0.7])
+    L = np.array([0.0, 0.1])
+    U = np.array([0.4, 0.7])
     S = np.array([0, 1], dtype=int)
     D_lo, D_hi = 0.5, 2.0
     Ds = _width_candidate_discounts_for_subset(K, L, U, S, D_lo, D_hi, eps=1e-12)
@@ -190,6 +199,7 @@ def test__width_candidate_discounts_for_subset_includes_midpoints_and_endpoints(
     assert np.any(np.isclose(Ds, D_lo))
     assert np.any(np.isclose(Ds, D_hi))
     assert np.all(np.diff(Ds) >= 0)
+
 
 def test__forward_band_for_subset_at_D_basic():
     K = np.array([100.0, 110.0, 120.0])
@@ -209,15 +219,15 @@ def test_best_depth_lt_2_empty_selection_mask_is_all_false():
     so the sweep finds no events → best_depth=0<2 → branch at lines ~101–108.
     Expect: res is None, mask is all-False.
     """
-    K  = np.array([100.0, 200.0])
+    K = np.array([100.0, 200.0])
 
     # Make per-row intervals invalid (U < L) so no row is ever “valid” at any D.
     # Also choose values so candidate D ratios include a positive number:
     # For i=0, j=1: (U1 - L0)/(K0 - K1) = (-3 - 1)/(-100) = +0.04 > 0
-    Cb = np.array([ 1.0,  0.0])   # L = Cb - Pa
-    Ca = np.array([-2.0, -3.0])   # U = Ca - Pb
-    Pb = np.array([ 0.0,  0.0])
-    Pa = np.array([ 0.0,  0.0])
+    Cb = np.array([1.0, 0.0])  # L = Cb - Pa
+    Ca = np.array([-2.0, -3.0])  # U = Ca - Pb
+    Pb = np.array([0.0, 0.0])
+    Pa = np.array([0.0, 0.0])
 
     res, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
     assert res is None
@@ -231,16 +241,16 @@ def test_duplicate_strike_best_subset_triggers_continue_and_returns_none():
     That subset is rejected in step 3 → continue. The third row is always invalid,
     so there's no alternative depth-2 subset → res=None, mask all-False.
     """
-    K  = np.array([100.0, 100.0, 120.0])
+    K = np.array([100.0, 100.0, 120.0])
 
     # Duplicate-K rows (0,1): valid intervals at any D (tight but U>=L)
-    Cb01 = np.array([0.0,  0.2])   # L0=0.0, L1=0.2
-    Ca01 = np.array([0.1,  0.3])   # U0=0.1, U1=0.3
-    Pb01 = np.array([0.0,  0.0])
-    Pa01 = np.array([0.0,  0.0])
+    Cb01 = np.array([0.0, 0.2])  # L0=0.0, L1=0.2
+    Ca01 = np.array([0.1, 0.3])  # U0=0.1, U1=0.3
+    Pb01 = np.array([0.0, 0.0])
+    Pa01 = np.array([0.0, 0.0])
 
     # Row 2 (non-duplicate K=120): always invalid (U2 < L2) so it never contributes
-    Cb2, Ca2 = 5.0, 4.0            # L2=5.0, U2=4.0 ⇒ invalid at all D
+    Cb2, Ca2 = 5.0, 4.0  # L2=5.0, U2=4.0 ⇒ invalid at all D
     Pb2, Pa2 = 0.0, 0.0
 
     Cb = np.array([Cb01[0], Cb01[1], Cb2])
@@ -254,15 +264,14 @@ def test_duplicate_strike_best_subset_triggers_continue_and_returns_none():
     assert not mask.any()
 
 
-
-
 EPS = 1e-12
+
 
 def test_no_positive_D_candidates_picks_best_singleton_by_narrowest_band():
     # Arrange two strikes whose cross-equalities yield D <= 0 only.
     # Make both per-strike bands valid (U > L), but different widths.
     # L_i = Cb_i - Pa_i ; U_i = Ca_i - Pb_i
-    K  = np.array([100.0, 200.0])
+    K = np.array([100.0, 200.0])
     # Row 0: tight band [0.00, 0.05]
     Cb0, Ca0, Pb0, Pa0 = 0.00, 0.05, 0.00, 0.00  # width = 0.05
     # Row 1: wider band [1.00, 2.00]
@@ -284,10 +293,12 @@ def test_no_positive_D_candidates_picks_best_singleton_by_narrowest_band():
     # Row 0 (narrower band) should be the chosen singleton
     assert mask[0] and not mask[1]
 
+
 # -------------------------------------------
 
+
 def test_no_positive_D_candidates_with_duplicate_only_rows_marks_none():
-    K  = np.array([100.0, 100.0])
+    K = np.array([100.0, 100.0])
     Cb = np.array([0.00, 0.10])
     Ca = np.array([0.20, 0.30])
     Pb = np.array([0.00, 0.00])
@@ -299,23 +310,6 @@ def test_no_positive_D_candidates_with_duplicate_only_rows_marks_none():
     assert not mask.any()
 
     # ==================================================================================
-
-
-    
-import numpy as np
-import pytest
-
-from volkit.implied.future import (
-    implied_future_from_option_quotes,
-    _filter_and_sort_finite,
-    _with_midpoints,
-    _feasible_D_interval_for_subset,
-    _width_candidate_discounts_for_subset,
-    _choose_subset_with_fallback,
-    _forward_band_for_subset_at_D,   # sanity use in one test
-)
-
-EPS = 1e-12
 
 
 def test_public_choice_none_path_returns_none_and_mask_all_false():
@@ -330,10 +324,10 @@ def test_public_choice_none_path_returns_none_and_mask_all_false():
     """
     # Two duplicate-K rows (valid)
     K = np.array([100.0, 100.0, 120.0])
-    Cb = np.array([0.00, 0.05,  0.0])
-    Ca = np.array([0.10, 0.15, -6.0])   # third row ask very negative
-    Pb = np.array([0.00, 0.00,  0.0])
-    Pa = np.array([0.00, 0.00, -5.0])   # third row L=-5, U=-6 (invalid: U<L)
+    Cb = np.array([0.00, 0.05, 0.0])
+    Ca = np.array([0.10, 0.15, -6.0])  # third row ask very negative
+    Pb = np.array([0.00, 0.00, 0.0])
+    Pa = np.array([0.00, 0.00, -5.0])  # third row L=-5, U=-6 (invalid: U<L)
 
     # Ds will be positive due to (i=dup, j=invalid) cross-equalities,
     # but the only overlap subset at depth>=2 is (0,1) with duplicate Ks -> rejected.
@@ -354,7 +348,9 @@ def test__filter_and_sort_finite_all_invalid_returns_empty():
     Pb = np.array([np.nan, np.inf])
     Pa = np.array([np.nan, np.inf])
 
-    K1, Cb1, Ca1, Pb1, Pa1, idx_sorted_to_orig = _filter_and_sort_finite(K, Cb, Ca, Pb, Pa)
+    K1, Cb1, Ca1, Pb1, Pa1, idx_sorted_to_orig = _filter_and_sort_finite(
+        K, Cb, Ca, Pb, Pa
+    )
     assert K1.size == 0
     assert idx_sorted_to_orig.size == 0
     # and shapes stay aligned
@@ -396,7 +392,9 @@ def test__choose_subset_with_fallback_empty_mapping_returns_none():
     K = np.array([100.0, 120.0])
     L = np.array([0.0, 0.0])
     U = np.array([1.0, 1.0])
-    res = _choose_subset_with_fallback(K, L, U, depths_to_subsets={}, subset_to_Ds={}, eps=EPS)
+    res = _choose_subset_with_fallback(
+        K, L, U, depths_to_subsets={}, subset_to_Ds={}, eps=EPS
+    )
     assert res is None
 
 
@@ -415,15 +413,17 @@ def test__choose_subset_with_fallback_skips_depth1_and_selects_best():
     # Choose L,U so that (0,1) has feasible D in (0, hi] and non-empty width
     # For p<q with denom=20:
     #   D_lo = max((L_p - U_q)/20), D_hi = min((U_p - L_q)/20)
-    L = np.array([0.0, -1.0,  5.0])   # 2nd row low to allow overlap with 1st at small D
-    U = np.array([1.0,  2.0,  6.0])
+    L = np.array([0.0, -1.0, 5.0])  # 2nd row low to allow overlap with 1st at small D
+    U = np.array([1.0, 2.0, 6.0])
 
     depths_to_subsets = {
-        1: [(0,), (1,)],         # ensures the 'continue' branch is taken for depth=1
-        2: [(0, 1)],             # a valid pair; unique K guaranteed
+        1: [(0,), (1,)],  # ensures the 'continue' branch is taken for depth=1
+        2: [(0, 1)],  # a valid pair; unique K guaranteed
     }
     # subset_to_Ds is unused by the current implementation but pass an empty dict for completeness
-    choice = _choose_subset_with_fallback(K, L, U, depths_to_subsets, subset_to_Ds={}, eps=EPS)
+    choice = _choose_subset_with_fallback(
+        K, L, U, depths_to_subsets, subset_to_Ds={}, eps=EPS
+    )
     assert choice is not None
 
     D_star, F_bid, F_ask, D_lo, D_hi, subset_key = choice
@@ -445,8 +445,8 @@ def test__feasible_D_interval_handles_nonfinite_left_bound_skipped():
     as 'skip' and still return an interval (or None if inconsistent).
     """
     K = np.array([100.0, 120.0])
-    L = np.array([np.inf, 0.0])     # non-finite left endpoint for pair (will be skipped)
-    U = np.array([1.0,    2.0])
+    L = np.array([np.inf, 0.0])  # non-finite left endpoint for pair (will be skipped)
+    U = np.array([1.0, 2.0])
 
     # Using the full subset
     S = np.array([0, 1], dtype=int)
@@ -454,7 +454,9 @@ def test__feasible_D_interval_handles_nonfinite_left_bound_skipped():
 
     # With lo skipped and hi finite, we still expect some interval or None.
     # Either outcome is acceptable for the branch coverage; assert type/shape.
-    assert (D_interval is None) or (isinstance(D_interval, tuple) and len(D_interval) == 2)
+    assert (D_interval is None) or (
+        isinstance(D_interval, tuple) and len(D_interval) == 2
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -493,8 +495,10 @@ def test__choose_subset_with_fallback_empty_maps_return_none():
     U = np.array([1.0, 2.0])
 
     choice = _choose_subset_with_fallback(
-        K, L, U,
-        depths_to_subsets={},   # empty -> immediate None
+        K,
+        L,
+        U,
+        depths_to_subsets={},  # empty -> immediate None
         subset_to_Ds={},
         eps=EPS,
     )
@@ -516,7 +520,9 @@ def test__choose_subset_with_fallback_skips_depth1_only_and_returns_none():
     }
 
     choice = _choose_subset_with_fallback(
-        K, L, U,
+        K,
+        L,
+        U,
         depths_to_subsets=depths_to_subsets,
         subset_to_Ds={},  # not used in the depth<2 path
         eps=EPS,
@@ -550,12 +556,7 @@ def test__filter_and_sort_finite_no_rows_fast_path():
     assert idx.size == 0
 
 
-
-
-
 # ====================================================9872
-import numpy as np
-from volkit.implied.future import _choose_subset_with_fallback, _feasible_D_interval_for_subset
 
 EPS = 1e-12
 
@@ -568,60 +569,23 @@ def test__choose_subset_with_fallback_depth2_duplicateK_rejected_then_none():
 
     depths_to_subsets has depth=2 with a single subset (0,1), but K[0]==K[1].
     """
-    K = np.array([100.0, 100.0, 140.0])   # duplicate Ks at indices 0 and 1
+    K = np.array([100.0, 100.0, 140.0])  # duplicate Ks at indices 0 and 1
     L = np.array([0.0, 0.1, 0.0])
     U = np.array([0.2, 0.3, 1.0])
 
     depths_to_subsets = {
-        2: [(0, 1)],   # only candidate has duplicate K -> must be rejected
+        2: [(0, 1)],  # only candidate has duplicate K -> must be rejected
     }
     choice = _choose_subset_with_fallback(
-        K, L, U,
+        K,
+        L,
+        U,
         depths_to_subsets=depths_to_subsets,
         subset_to_Ds={},  # not used by current implementation
         eps=EPS,
     )
     assert choice is None
 
-
-def test__choose_subset_with_fallback_depth2_infeasible_interval_then_none():
-    """
-    Cover the branch that finds a depth-2 subset with distinct strikes but
-    an infeasible D-interval (so D_interval is None), leading to the final
-    `return None`.
-
-    We craft L,U so that _feasible_D_interval_for_subset returns None for (0,1).
-    """
-    K = np.array([100.0, 120.0])  # distinct strikes
-    # Force D_lo > D_hi by making the cross-constraints inconsistent:
-    # For p=0,q=1 with denom=20:
-    #   lo = (L0 - U1)/20  ; hi = (U0 - L1)/20
-    # Choose numbers so lo > hi.
-    L0, U0 = 10.0, 10.1
-    L1, U1 =  0.0,  0.05
-    L = np.array([L0, L1])
-    U = np.array([U0, U1])
-
-    # Sanity: the helper indeed yields None for subset (0,1)
-    S = np.array([0, 1], dtype=int)
-    assert _feasible_D_interval_for_subset(K, L, U, S, eps=EPS) is None
-
-    depths_to_subsets = {
-        2: [(0, 1)],   # valid depth but infeasible interval
-    }
-    choice = _choose_subset_with_fallback(
-        K, L, U,
-        depths_to_subsets=depths_to_subsets,
-        subset_to_Ds={},
-        eps=EPS,
-    )
-    assert choice is None
-
-
-import numpy as np
-from volkit.implied.future import _choose_subset_with_fallback, _feasible_D_interval_for_subset
-
-EPS = 1e-12
 
 def test__choose_subset_with_fallback_depth2_infeasible_interval_then_none():
     """
@@ -644,18 +608,15 @@ def test__choose_subset_with_fallback_depth2_infeasible_interval_then_none():
     assert _feasible_D_interval_for_subset(K, L, U, S, eps=EPS) is None
 
     depths_to_subsets = {2: [(0, 1)]}
-    choice = _choose_subset_with_fallback(K, L, U, depths_to_subsets, subset_to_Ds={}, eps=EPS)
+    choice = _choose_subset_with_fallback(
+        K, L, U, depths_to_subsets, subset_to_Ds={}, eps=EPS
+    )
     assert choice is None
 
-# ============================================================9936
-# Append to tests/test_implied_future.py
 
-import numpy as np
-import volkit.implied.future as vf
-
-EPS = 1e-12
-
-def test__choose_subset_with_fallback_handles_empty_D_candidates_via_monkeypatch(monkeypatch):
+def test__choose_subset_with_fallback_handles_empty_D_candidates_via_monkeypatch(
+    monkeypatch,
+):
     """
     Force the `D_cands.size == 0` branch inside _choose_subset_with_fallback by
     monkeypatching _width_candidate_discounts_for_subset to return an empty array.
@@ -679,7 +640,9 @@ def test__choose_subset_with_fallback_handles_empty_D_candidates_via_monkeypatch
     )
 
     choice = vf._choose_subset_with_fallback(
-        K, L, U,
+        K,
+        L,
+        U,
         depths_to_subsets=depths_to_subsets,
         subset_to_Ds={},
         eps=EPS,

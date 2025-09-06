@@ -8,7 +8,7 @@ class ImpliedFutureResult:  # pragma: no cover
     F: float  # point forward (mid-band)
     F_bid: float  # lower bound on forward
     F_ask: float  # upper bound on forward
-    D: float # point discount factor
+    D: float  # point discount factor
     D_min: float  # lower bound on discount factor (D = e^{-rT})
     D_max: float  # upper bound on discount factor
 
@@ -42,7 +42,7 @@ class ImpliedFutureResult:  # pragma: no cover
             "<tr><th style='text-align:left;padding-right:8px'>F_ask</th>"
             f"<td>{self.F_ask:.6f}</td></tr>"
             "<tr><th style='text-align:left;padding-right:8px'>D</th>"
-            f"<td>{self.D:.6f}</td></tr>"            
+            f"<td>{self.D:.6f}</td></tr>"
             "<tr><th style='text-align:left;padding-right:8px'>D_min</th>"
             f"<td>{self.D_min:.8f}</td></tr>"
             "<tr><th style='text-align:left;padding-right:8px'>D_max</th>"
