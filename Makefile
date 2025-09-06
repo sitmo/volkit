@@ -46,7 +46,9 @@ docs:
 	@echo "Open docs/_build/html/index.html in your browser"
 
 test:
-	poetry run pytest --cov=volkit --cov-report=term-missing
+	rm -rf htmlcov
+	poetry run pytest --cov=volkit --cov-branch \
+		--cov-report=term-missing --cov-report=html:htmlcov
 
 install:
 	poetry install --with dev -E docs

@@ -18,7 +18,7 @@ def implied_future_from_option_quotes_plot(
     uniform_x: bool = True,
     max_xticks: int = 25,
     label_rotation: int = 45,
-):
+):  # pragma: no cover
     import matplotlib.pyplot as plt
     from matplotlib.ticker import FixedLocator, FixedFormatter
 

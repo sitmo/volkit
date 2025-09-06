@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class ImpliedFutureResult:
+class ImpliedFutureResult:  # pragma: no cover
     """Compact result for implied forward/discount from quotes."""
 
     F: float  # point forward (mid-band)
