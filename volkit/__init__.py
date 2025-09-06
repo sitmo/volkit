@@ -30,4 +30,4 @@ __all__ = [
     "implied_future_from_option_quotes",
 ]
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
