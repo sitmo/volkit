@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from volkit.future import (
+from volkit import (
     price_euro_future,
     delta_euro_future,
     gamma_euro_future,

@@ -1,7 +1,7 @@
 # tests/test_iv_and_utils.py
 import numpy as np
 
-from volkit.future import _parse_cp
+from volkit.pricing.future import _parse_cp
 
 
 def test_parse_cp_values_and_broadcast():

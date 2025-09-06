@@ -1,7 +1,7 @@
-# volkit.future
+# volkit.implied
 
 ```{eval-rst}
-.. automodule:: volkit.future
+.. automodule:: volkit.implied
    :members:
    :undoc-members:
    :show-inheritance:

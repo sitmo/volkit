@@ -8,6 +8,7 @@ class ImpliedFutureResult:  # pragma: no cover
     F: float  # point forward (mid-band)
     F_bid: float  # lower bound on forward
     F_ask: float  # upper bound on forward
+    D: float # point discount factor
     D_min: float  # lower bound on discount factor (D = e^{-rT})
     D_max: float  # upper bound on discount factor
 
@@ -16,6 +17,7 @@ class ImpliedFutureResult:  # pragma: no cover
         object.__setattr__(self, "F", float(self.F))
         object.__setattr__(self, "F_bid", float(self.F_bid))
         object.__setattr__(self, "F_ask", float(self.F_ask))
+        object.__setattr__(self, "D", float(self.D))
         object.__setattr__(self, "D_min", float(self.D_min))
         object.__setattr__(self, "D_max", float(self.D_max))
 
@@ -25,6 +27,7 @@ class ImpliedFutureResult:  # pragma: no cover
             f"ImpliedFutureResult("
             f"F={self.F:.4f}, "
             f"F_bid={self.F_bid:.4f}, F_ask={self.F_ask:.4f}, "
+            f"D={self.D:.4f}, "
             f"D_min={self.D_min:.6f}, D_max={self.D_max:.6f})"
         )
 
@@ -38,6 +41,8 @@ class ImpliedFutureResult:  # pragma: no cover
             f"<td>{self.F_bid:.6f}</td></tr>"
             "<tr><th style='text-align:left;padding-right:8px'>F_ask</th>"
             f"<td>{self.F_ask:.6f}</td></tr>"
+            "<tr><th style='text-align:left;padding-right:8px'>D</th>"
+            f"<td>{self.D:.6f}</td></tr>"            
             "<tr><th style='text-align:left;padding-right:8px'>D_min</th>"
             f"<td>{self.D_min:.8f}</td></tr>"
             "<tr><th style='text-align:left;padding-right:8px'>D_max</th>"
@@ -51,6 +56,7 @@ class ImpliedFutureResult:  # pragma: no cover
             F=self.F,
             F_bid=self.F_bid,
             F_ask=self.F_ask,
+            D=self.D,
             D_min=self.D_min,
             D_max=self.D_max,
         )

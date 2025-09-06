@@ -30,9 +30,11 @@ def implied_future_from_option_quotes(
     Returns
     -------
     (result, valid_mask)
-        result : ImpliedFutureResult or None if no feasible subset with ≥2 distinct strikes
-        valid_mask : bool array, shape (len(K),), in ORIGINAL input order.
-                     True for strikes used by the solution; False otherwise.
+        result : ImpliedFutureResult or None
+            No feasible subset if fewer than 2 distinct strikes.
+        valid_mask : ndarray of bool, shape (len(K),)
+            In ORIGINAL input order. True for strikes used by the solution;
+            False otherwise.
 
     Notes
     -----
@@ -44,6 +46,7 @@ def implied_future_from_option_quotes(
     - Selection across depths: we try the highest feasible depth first, then fall back
       to lower depths (≥2). Within a depth, we choose the subset/D that maximizes width.
     """
+
     # ----------------------------
     # 0) Basic filtering & ordering
     # ----------------------------
@@ -100,11 +103,12 @@ def implied_future_from_option_quotes(
     mask_out[keep_orig] = True
 
     result = ImpliedFutureResult(
-        F=0.5 * (F_bid_star + F_ask_star),
-        F_bid=F_bid_star,
-        F_ask=F_ask_star,
-        D_min=D_lo,
-        D_max=D_hi,
+        F=float(0.5 * (F_bid_star + F_ask_star)),
+        F_bid=float(F_bid_star),
+        F_ask=float(F_ask_star),
+        D=float((D_lo+D_hi)/2),
+        D_min=float(D_lo),
+        D_max=float(D_hi),
     )
 
     if plot:

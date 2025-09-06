@@ -2,8 +2,7 @@
 import numpy as np
 import pytest
 
-from volkit.implied.future import implied_future_from_option_quotes
-from volkit.future import price_euro_future
+from volkit import implied_future_from_option_quotes, price_euro_future
 
 def make_parity_consistent_quotes(K, F, D, s_call=0.4, s_put=0.6):
     """

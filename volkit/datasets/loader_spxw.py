@@ -3,15 +3,9 @@ from typing import Optional
 import os
 import pandas as pd
 
-
 def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
     """
     Load a sample SPXW options slice and apply simple filters.
-
-    This helper reads ``spxw.csv`` packaged with :mod:`volkit.dataset`, computes
-    calendar days-to-expiry ``D`` and trading-year time-to-expiry ``T`` (using
-    252 trading days per year), renames core option columns, and optionally
-    filters by minimum *both-sides* volume and/or a specific day-to-expiry.
 
     Parameters
     ----------
@@ -29,19 +23,21 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
     Returns
     -------
     pandas.DataFrame
-        A tidy DataFrame with one row per strike and the following columns:
-
-        - ``T`` : float, time to expiry in trading years (``D / 252``)
+        A  DataFrame with one row per strike and the following columns:
+        - ``quote_date`` : Quote snapshot data (at 12:45 during live sesion)
+        - ``expiration_date`` : Option Expiration date
         - ``D`` : int, calendar days to expiry (``ExpDate - Date``)
+        - ``T`` : float, time to expiry in trading years (``D / 252``)
         - ``K`` : float, strike
-        - ``C_bid``, ``C_ask``, ``C_vol`` : call bid/ask/volume
-        - ``P_bid``, ``P_ask``, ``P_vol`` : put bid/ask/volume
+        - ``F_bid``, ``F_ask`` : underlying future bid/ask
+        - ``C_bid``, ``C_ask``, ``C_vol``, ``C_oi`` : call bid/ask/volume/open interest
+        - ``P_bid``, ``P_ask``, ``P_vol``, ``P_oi`` : put bid/ask/volume/open interest
 
     Notes
     -----
     - ``T`` uses **252** trading days/year to align with options practice.
       If you prefer ACT/365 or ACT/ACT, convert after loading.
-    - Date columns (``Date``, ``ExpDate``) are parsed as datetimes.
+    - Date columns (``quote_date``, ``expiration_date``) are parsed as datetimes.
 
     Examples
     --------
@@ -63,30 +59,82 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
 
     >>> df.groupby('D')['K'].agg(['min','max','count'])
     """
+    # columns to pivot and how they should be renamed
+    rename_map = {
+        "bid_size_1545": "bid_size",
+        "bid_1545": "bid",
+        "ask_size_1545": "ask_size",
+        "ask_1545": "ask",
+        "trade_volume": "vol",
+        "open_interest": "oi"
+    }
+
+    idx = ["quote_date", "expiration", "strike"]
+
     here = os.path.dirname(__file__)
-    csv_path = os.path.join(here, "data/spxw.csv")
-    df = pd.read_csv(csv_path, parse_dates=["Date", "ExpDate"])
-    df["D"] = (df["ExpDate"] - df["Date"]).dt.days
-    df["T"] = df["D"] / 252
-    df = df.rename(
+    csv_path = os.path.join(here, "data/spxw20190626.csv")
+
+    df = pd.read_csv(
+        csv_path,
+        parse_dates=['quote_date', 'expiration']
+    )
+
+    # Wide pivot: values × option_type -> single level columns like C_bid, P_ask_size
+    pt = (
+        df.pivot_table(
+            index=idx,
+            columns="option_type",
+            values=list(rename_map.keys()),
+            aggfunc="first",  # or 'last' / np.nanmean etc., if duplicates exist
+        )
+        .sort_index(axis=1)  # optional
+    )
+
+    # flatten MultiIndex columns: ('bid_1545','C') -> 'C_bid'
+    pt.columns = [
+        f"{opt}_{rename_map[val]}"
+        for (val, opt) in pt.columns.to_flat_index()
+    ]
+
+    pt = pt.reset_index()
+
+    # Keep the non-pivot columns (take first if duplicated across C/P rows)
+    nonpivot = [
+        "quote_date", "expiration", "strike",
+        "underlying_bid_1545", "underlying_ask_1545",
+    ]
+    base = (
+        df[nonpivot]
+        .drop_duplicates(subset=idx)
+        .groupby(idx, as_index=False)
+        .first()
+    )
+
+    # Merge and (optionally) order columns
+    out = base.merge(pt, on=idx, how="left")
+
+
+    out = out.rename(
         columns={
-            "Strike": "K",
-            "CallBid": "C_bid",
-            "CallAsk": "C_ask",
-            "CallVolume": "C_vol",
+            "strike": "K",
+            "underlying_bid_1545": "F_bid",
+            "underlying_ask_1545": "F_ask",
+            "trade_volume": "vol",
             "PutBid": "P_bid",
             "PutAsk": "P_ask",
             "PutVolume": "P_vol",
+            "expiration": "expiration_date"
         }
     )
+    out["D"] = (out["expiration_date"] - out["quote_date"]).dt.days
+    out["T"] = out["D"] / 252
 
-    # Volume filter (both sides must meet the threshold)
     if min_vol > 0:
-        df = df[df["C_vol"] >= min_vol]
-        df = df[df["P_vol"] >= min_vol]
+        out = out[out["C_vol"] >= min_vol]
+        out = out[out["P_vol"] >= min_vol]
 
     # Specific day filter
     if D is not None:
-        df = df[df["D"] == D]
+        out = out[out["D"] == D]    
+    return out
 
-    return df[["T", "D", "K", "C_bid", "C_ask", "C_vol", "P_bid", "P_ask", "P_vol"]]

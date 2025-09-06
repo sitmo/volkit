@@ -13,9 +13,11 @@ A powerfull lightweight toolkit for option pricing, implied volatility, and Gree
 
 
 ## Installation
+
 ```bash
 pip install volkit
 ```
+
 ```{toctree}
 :hidden:
 :maxdepth: 2
@@ -29,18 +31,16 @@ api/index
 :caption: Examples
 :maxdepth: 1
 
-Option Prices Table <examples/strikes_table>
+Theoretical Option Prices Table <examples/strikes_table>
 Greeks: Analytic vs Numeric <examples/greeks_demo>
 Greeks: Surface Plots <examples/greeks_surfaces>
 Broadcasting Basics <examples/broadcasting>
-Computing Implied Futures from Options <examples/implied_future>
+Implied Volatilities <examples/implied_vol>
+Implied Futures from Options <examples/implied_future>
 Datasets: SPXW <examples/spxw_dataset.ipynb>
 
 ```
 
-
-## Getting started
-See {doc}`getting-started`.
 
 ## API
 See {doc}`api/index`.
