@@ -1,7 +1,7 @@
-# volkit.datasets
+# volkit.utils
 
 ```{eval-rst}
-.. automodule:: volkit.datasets
+.. automodule:: volkit.utils
    :members:
    :undoc-members:
    :show-inheritance:
