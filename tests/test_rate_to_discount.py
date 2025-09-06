@@ -14,13 +14,15 @@ def test_with_t_basic():
 def test_with_days_default_conversion():
     r = 0.1
     expected = np.exp(-r * 0.5)
-    assert np.isclose(rate_to_discount(r, days=365/2), expected, rtol=1e-12, atol=0)
+    assert np.isclose(rate_to_discount(r, days=365 / 2), expected, rtol=1e-12, atol=0)
 
 
 def test_with_days_custom_days_per_year():
     r = 0.1
     expected = np.exp(-r * 0.25)
-    assert np.isclose(rate_to_discount(r, days=90, days_per_year=360), expected, rtol=1e-12, atol=0)
+    assert np.isclose(
+        rate_to_discount(r, days=90, days_per_year=360), expected, rtol=1e-12, atol=0
+    )
 
 
 def test_negative_rate_supported():
@@ -37,12 +39,16 @@ def test_zero_rate_returns_one():
 
 
 def test_both_none_raises():
-    with pytest.raises(ValueError, match="Exactly one of `t` or `days` must be provided"):
+    with pytest.raises(
+        ValueError, match="Exactly one of `t` or `days` must be provided"
+    ):
         rate_to_discount(0.1)
 
 
 def test_both_provided_raises():
-    with pytest.raises(ValueError, match="Exactly one of `t` or `days` must be provided"):
+    with pytest.raises(
+        ValueError, match="Exactly one of `t` or `days` must be provided"
+    ):
         rate_to_discount(0.1, t=1.0, days=365)
 
 

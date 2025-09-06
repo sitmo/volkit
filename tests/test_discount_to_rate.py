@@ -14,22 +14,28 @@ def test_with_t_basic():
 def test_with_days_default_conversion():
     d = 0.95
     expected = -np.log(d) / 0.5
-    assert np.isclose(discount_to_rate(d, days=365/2), expected, rtol=1e-12, atol=0)
+    assert np.isclose(discount_to_rate(d, days=365 / 2), expected, rtol=1e-12, atol=0)
 
 
 def test_with_days_custom_days_per_year():
     d = 0.95
     expected = -np.log(d) / 0.25
-    assert np.isclose(discount_to_rate(d, days=90, days_per_year=360), expected, rtol=1e-12, atol=0)
+    assert np.isclose(
+        discount_to_rate(d, days=90, days_per_year=360), expected, rtol=1e-12, atol=0
+    )
 
 
 def test_both_none_raises():
-    with pytest.raises(ValueError, match="Exactly one of `t` or `days` must be provided"):
+    with pytest.raises(
+        ValueError, match="Exactly one of `t` or `days` must be provided"
+    ):
         discount_to_rate(0.99)
 
 
 def test_both_provided_raises():
-    with pytest.raises(ValueError, match="Exactly one of `t` or `days` must be provided"):
+    with pytest.raises(
+        ValueError, match="Exactly one of `t` or `days` must be provided"
+    ):
         discount_to_rate(0.99, t=1.0, days=252)
 
 

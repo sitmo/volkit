@@ -4,6 +4,7 @@ import numpy as np
 
 __all__ = ["discount_to_rate", "rate_to_discount"]
 
+
 def discount_to_rate(discount_rate, *, t=None, days=None, days_per_year=365):
     """
     Convert a discount factor into a continuously compounded annualized rate.
