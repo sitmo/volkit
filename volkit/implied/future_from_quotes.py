@@ -6,7 +6,7 @@ from collections import defaultdict
 import numpy as np
 
 from volkit.implied.future_res import ImpliedFutureResult
-from volkit.implied.future_plot import implied_future_from_option_quotes_plot
+from volkit.implied.future_from_quotes_plot import implied_future_from_option_quotes_plot
 
 
 # ======================================================================

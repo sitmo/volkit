@@ -2,8 +2,8 @@
 import numpy as np
 
 from volkit import implied_future_from_option_quotes
-import volkit.implied.future as vf
-from volkit.implied.future import (
+import volkit.implied.future_from_quotes as vf
+from volkit.implied.future_from_quotes import (
     _max_overlap_subset_at_D,
     _feasible_D_interval_for_subset,
     _width_candidate_discounts_for_subset,
@@ -57,7 +57,7 @@ def test_known_forward_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
     Pa_with_nan = np.concatenate([Pa, [np.nan]])
 
     # Monkeypatch the plotting function so plot=True path runs without side effects
-    import volkit.implied.future as futmod
+    import volkit.implied.future_from_quotes as futmod
 
     monkeypatch.setattr(
         futmod, "implied_future_from_option_quotes_plot", lambda *a, **k: None

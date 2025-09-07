@@ -4,35 +4,50 @@ import os
 import pandas as pd
 
 
-def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
+def spxw(
+    min_volume: int = 0,
+    D: Optional[int] = None,
+    *,
+    include_dates: bool = True,
+    include_underlying: bool = True,
+    include_quotes: bool = True,       # C_bid, C_ask, P_bid, P_ask
+    include_sizes: bool = False,        # C_bid_size, C_ask_size, P_bid_size, P_ask_size
+    include_open_interest: bool = False,# C_oi, P_oi
+    include_volumes: bool = True,       # C_vol, P_vol
+    data_path: Optional[str] = None,
+) -> pd.DataFrame:
     """
     Load a sample SPXW options slice and apply simple filters.
 
     Parameters
     ----------
-    min_vol : int, default 0
-        Minimum per-option volume required **for both** the call and the put
+    min_volume : int, default 0
+        Minimum per-option trade volume required **for both** the call and the put
         at a given strike. Rows are kept only if
-        ``C_vol >= min_vol`` **and** ``P_vol >= min_vol``.
+        ``C_vol >= min_volume`` **and** ``P_vol >= min_volume``.
         Use ``0`` to disable the volume filter.
     D : int or None, default None
-        If provided, keep only rows whose computed calendar
-        days-to-expiry equals this value. For example, ``D=7`` keeps
-        the 7-calendar-day slice only. Use ``None`` to keep all expiries
-        in the file.
+        If provided, keep only rows whose computed calendar days-to-expiry equals this value.
+        For example, ``D=7`` keeps the 7-calendar-day slice only. Use ``None`` to keep all expiries.
+    include_dates : bool, default True
+        Include the date columns ``quote_date`` and ``expiration_date``.
+    include_underlying : bool, default True
+        Include underlying columns ``F_bid`` and ``F_ask``.
+    include_quotes : bool, default True
+        Include option quotes ``C_bid``, ``C_ask``, ``P_bid``, ``P_ask``.
+    include_sizes : bool, default False
+        Include order book sizes ``C_bid_size``, ``C_ask_size``, ``P_bid_size``, ``P_ask_size``.
+    include_open_interest : bool, default False
+        Include open interest ``C_oi``, ``P_oi``.
+    include_volumes : bool, default True
+        Include trade volumes ``C_vol``, ``P_vol`` (also used by the volume filter).
+    data_path : str or None, default None
+        Optional path to a CSV with SPXW columns. If None, uses the packaged sample.
 
     Returns
     -------
     pandas.DataFrame
-        A  DataFrame with one row per strike and the following columns:
-        - ``quote_date`` : Quote snapshot data (at 12:45 during live sesion)
-        - ``expiration_date`` : Option Expiration date
-        - ``D`` : int, calendar days to expiry (``ExpDate - Date``)
-        - ``T`` : float, time to expiry in trading years (``D / 252``)
-        - ``K`` : float, strike
-        - ``F_bid``, ``F_ask`` : underlying future bid/ask
-        - ``C_bid``, ``C_ask``, ``C_vol``, ``C_oi`` : call bid/ask/volume/open interest
-        - ``P_bid``, ``P_ask``, ``P_vol``, ``P_oi`` : put bid/ask/volume/open interest
+        One row per strike with at least: ``K``, ``D``, ``T`` (and selected extra columns).
 
     Notes
     -----
@@ -42,23 +57,14 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
 
     Examples
     --------
-    Load everything:
-
-    >>> from volkit.dataset import spxw
+    Load everything (defaults):
     >>> df = spxw()
-    >>> df.head()
 
     Keep only options with at least 100 contracts traded on both sides:
+    >>> df = spxw(min_volume=100)
 
-    >>> df = spxw(min_vol=100)
-
-    Work with a single tenor (e.g., 7 days to expiry):
-
-    >>> df_7d = spxw(min_vol=50, D=7)
-
-    Group by time-to-expiry and inspect strikes:
-
-    >>> df.groupby('D')['K'].agg(['min','max','count'])
+    Work with a single tenor (e.g., 7 days to expiry) and only quotes:
+    >>> df = spxw(D=7, include_underlying=False, include_sizes=False, include_open_interest=False)
     """
     # columns to pivot and how they should be renamed
     rename_map = {
@@ -69,32 +75,31 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
         "trade_volume": "vol",
         "open_interest": "oi",
     }
-
     idx = ["quote_date", "expiration", "strike"]
 
-    here = os.path.dirname(__file__)
-    csv_path = os.path.join(here, "data/spxw20190626.csv")
+    # Locate CSV
+    if data_path is None:
+        here = os.path.dirname(__file__)
+        data_path = os.path.join(here, "data/spxw20190626.csv")
 
-    df = pd.read_csv(csv_path, parse_dates=["quote_date", "expiration"])
+    df = pd.read_csv(data_path, parse_dates=["quote_date", "expiration"])
 
     # Wide pivot: values × option_type -> single level columns like C_bid, P_ask_size
-    pt = df.pivot_table(
-        index=idx,
-        columns="option_type",
-        values=list(rename_map.keys()),
-        aggfunc="first",  # or 'last' / np.nanmean etc., if duplicates exist
-    ).sort_index(
-        axis=1
-    )  # optional
+    pt = (
+        df.pivot_table(
+            index=idx,
+            columns="option_type",
+            values=list(rename_map.keys()),
+            aggfunc="first",  # if duplicates exist, take first
+        )
+        .sort_index(axis=1)
+    )
 
     # flatten MultiIndex columns: ('bid_1545','C') -> 'C_bid'
-    pt.columns = [
-        f"{opt}_{rename_map[val]}" for (val, opt) in pt.columns.to_flat_index()
-    ]
-
+    pt.columns = [f"{opt}_{rename_map[val]}" for (val, opt) in pt.columns.to_flat_index()]
     pt = pt.reset_index()
 
-    # Keep the non-pivot columns (take first if duplicated across C/P rows)
+    # Keep the non-pivot columns (take the first if duplicated across C/P rows)
     nonpivot = [
         "quote_date",
         "expiration",
@@ -102,31 +107,63 @@ def spxw(min_vol: int = 0, D: Optional[int] = None) -> pd.DataFrame:
         "underlying_bid_1545",
         "underlying_ask_1545",
     ]
-    base = df[nonpivot].drop_duplicates(subset=idx).groupby(idx, as_index=False).first()
+    base = (
+        df[nonpivot]
+        .drop_duplicates(subset=idx)
+        .groupby(idx, as_index=False)
+        .first()
+    )
 
-    # Merge and (optionally) order columns
+    # Merge
     out = base.merge(pt, on=idx, how="left")
 
+    # Rename to final schema
     out = out.rename(
         columns={
             "strike": "K",
             "underlying_bid_1545": "F_bid",
             "underlying_ask_1545": "F_ask",
-            "trade_volume": "vol",
-            "PutBid": "P_bid",
-            "PutAsk": "P_ask",
-            "PutVolume": "P_vol",
             "expiration": "expiration_date",
         }
     )
+
+    # Days and time to expiry
     out["D"] = (out["expiration_date"] - out["quote_date"]).dt.days
-    out["T"] = out["D"] / 252
+    out["T"] = out["D"] / 252.0
 
-    if min_vol > 0:
-        out = out[out["C_vol"] >= min_vol]
-        out = out[out["P_vol"] >= min_vol]
+    # Row filters
+    if min_volume > 0:
+        # even if include_volumes=False, the columns exist for filtering
+        out = out[(out["C_vol"] >= min_volume) & (out["P_vol"] >= min_volume)]
 
-    # Specific day filter
     if D is not None:
         out = out[out["D"] == D]
-    return out
+
+    # Column selection ---------------------------------------------------------
+    cols = ["K", "D", "T"]
+
+    if include_dates:
+        cols += ["quote_date", "expiration_date"]
+
+    if include_underlying:
+        cols += ["F_bid", "F_ask"]
+
+    if include_quotes:
+        cols += ["C_bid", "C_ask", "P_bid", "P_ask"]
+
+    if include_sizes:
+        cols += ["C_bid_size", "C_ask_size", "P_bid_size", "P_ask_size"]
+
+    if include_open_interest:
+        cols += ["C_oi", "P_oi"]
+
+    if include_volumes:
+        cols += ["C_vol", "P_vol"]
+
+    # Be forgiving if a column is missing in a custom CSV
+    cols = [c for c in cols if c in out.columns]
+
+    # Nice ordering and stable sort
+    out = out.sort_values(["quote_date", "expiration_date", "K"]).reset_index(drop=True)
+
+    return out[cols]
