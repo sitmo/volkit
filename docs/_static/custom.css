@@ -25,3 +25,9 @@ body[data-theme="dark"] .cell_output tbody tr:nth-child(2n) {
     background: var(--color-background-primary) !important;
   }
 }
+
+.output {
+  overflow-x: scroll;            /* enable horizontal scroll when needed */
+  -webkit-overflow-scrolling: touch; /* smoother on iOS */
+  scrollbar-gutter: stable both-edges;
+}
