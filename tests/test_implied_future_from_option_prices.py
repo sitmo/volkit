@@ -17,7 +17,6 @@ from volkit.estimate.future_from_option_prices import (
 )
 
 
-
 @pytest.fixture(scope="module")
 def rng():
     return np.random.default_rng(42)

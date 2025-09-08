@@ -7,7 +7,7 @@ import numpy as np
 
 __all__ = [
     "ImpliedFutureResult",
-    "estimate_future_from_option_quotes",
+    "estimate_future_from_option_prices",
     "_constrained_ols_line",
     "_mad",
     "_mad_threshold",
@@ -239,6 +239,8 @@ def estimate_future_from_option_prices(
     tol_sigma: Optional[float] = None,
     rel_tol: Optional[float] = None,
     abs_tol: Optional[float] = None,
+    day: float = None,
+    t: float = None,
 ) -> Tuple[Optional[ImpliedFutureResult], np.ndarray]:
     """Infer future F and discount factor D from *single* option prices.
 
