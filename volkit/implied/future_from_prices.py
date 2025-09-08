@@ -15,6 +15,7 @@ from .future_res import ImpliedFutureResult
 
 # --------------------------- helpers (private) ---------------------------------
 
+
 def _as_np1d(x, name: str) -> np.ndarray:
     arr = np.asarray(x, dtype=float)
     if arr.ndim != 1:
@@ -37,7 +38,9 @@ def _count_distinct(x: np.ndarray, eps: float) -> int:
     return int(1 + jumps.sum())
 
 
-def _constrained_ols_line(K: np.ndarray, y: np.ndarray, *, eps: float) -> Tuple[float, float]:
+def _constrained_ols_line(
+    K: np.ndarray, y: np.ndarray, *, eps: float
+) -> Tuple[float, float]:
     """Return (a, b) minimizing ||y - (a + bK)||^2 with *slope constraint* b ∈ [-1, 0]."""
     if K.size != y.size or K.size < 2:
         raise ValueError("Need at least two points for OLS line")
@@ -88,11 +91,11 @@ def _feasible_D_band_from_pairwise_slopes(
 
     slopes = []
     for i in range(n - 1):
-        dK = K[i + 1:] - K[i]
+        dK = K[i + 1 :] - K[i]
         m = np.abs(dK) > eps
         if not m.any():
             continue
-        dy = y[i + 1:] - y[i]
+        dy = y[i + 1 :] - y[i]
         slopes.append(dy[m] / dK[m])
 
     if not slopes:
@@ -111,7 +114,7 @@ def _feasible_D_band_from_pairwise_slopes(
     D_lo_raw, D_hi_raw = -s_hi, -s_lo  # D_lo_raw <= D_hi_raw
 
     # Canonicalize clip bounds and clamp once
-    c_lo, c_hi = (clip_D if clip_D[0] <= clip_D[1] else (clip_D[1], clip_D[0]))
+    c_lo, c_hi = clip_D if clip_D[0] <= clip_D[1] else (clip_D[1], clip_D[0])
     D_min = max(c_lo, D_lo_raw)
     D_max = min(c_hi, D_hi_raw)
 
@@ -139,7 +142,9 @@ def _forward_band_from_D_band(
     return float(F_lo), float(F_hi)
 
 
-def _scatter_back_mask(base_mask: np.ndarray, idx: np.ndarray, inlier_local: np.ndarray) -> np.ndarray:
+def _scatter_back_mask(
+    base_mask: np.ndarray, idx: np.ndarray, inlier_local: np.ndarray
+) -> np.ndarray:
     out = np.zeros_like(base_mask, dtype=bool)
     out_idx = idx[inlier_local]
     out[out_idx] = True
@@ -147,6 +152,7 @@ def _scatter_back_mask(base_mask: np.ndarray, idx: np.ndarray, inlier_local: np.
 
 
 # ------------------------------ public API -------------------------------------
+
 
 def implied_future_from_option_prices(
     K: np.ndarray,
@@ -198,7 +204,7 @@ def implied_future_from_option_prices(
         return None, np.zeros(n, dtype=bool)
 
     # Canonicalize discount clip bounds ONCE for this call
-    c_lo, c_hi = (clip_D if clip_D[0] <= clip_D[1] else (clip_D[1], clip_D[0]))
+    c_lo, c_hi = clip_D if clip_D[0] <= clip_D[1] else (clip_D[1], clip_D[0])
 
     idx = np.nonzero(finite_mask)[0]
     Kv = K[idx]
@@ -228,7 +234,9 @@ def implied_future_from_option_prices(
             a_tol = abs_tol if abs_tol is not None else 0.0
             r_tol = rel_tol if rel_tol is not None else 0.0
             thresh = sig * scale
-            allow = np.abs(resid) <= (thresh + a_tol + r_tol * np.maximum(np.abs(yv), eps))
+            allow = np.abs(resid) <= (
+                thresh + a_tol + r_tol * np.maximum(np.abs(yv), eps)
+            )
         else:
             # Legacy MAD trimming
             thresh = _mad_threshold(resid[inlier], mult=trim_mad_mult, eps=eps)
@@ -297,6 +305,7 @@ def implied_future_from_option_prices(
     if plot:
         try:
             import matplotlib.pyplot as plt  # type: ignore
+
             ax_ = ax if ax is not None else plt.gca()
             Kp = Kv
             yp = yv

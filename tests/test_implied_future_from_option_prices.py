@@ -2,10 +2,18 @@
 import math
 import numpy as np
 import pytest
+import matplotlib.pyplot as plt
 
-from volkit import (
-    ImpliedFutureResult,
+
+from volkit.implied.future_from_prices import (
     implied_future_from_option_prices,
+    ImpliedFutureResult,
+    _constrained_ols_line,
+    _mad,
+    _mad_threshold,
+    _feasible_D_band_from_pairwise_slopes,
+    _forward_band_from_D_band,
+    _count_distinct,
 )
 
 
@@ -56,7 +64,9 @@ def test_outliers_are_removed_and_refit_is_stable(rng):
     C_noisy[out_idx[3:]] -= 5.0
 
     # Accept both legacy (no tol_sigma kw) and new signature
-    res, mask = implied_future_from_option_prices(K, C_noisy, P, tol_sigma=3.0, rel_tol=1e-3)
+    res, mask = implied_future_from_option_prices(
+        K, C_noisy, P, tol_sigma=3.0, rel_tol=1e-3
+    )
 
     # Outliers should be excluded
     assert mask.sum() <= n - 4
@@ -121,10 +131,6 @@ def test_duplicate_strikes_are_collapsed(rng):
 
 
 def test_plot_branch_executes(rng):
-    try:
-        import matplotlib.pyplot as plt
-    except Exception:
-        pytest.skip("matplotlib not available in test environment")
 
     K = np.linspace(80, 120, 20)
     D_true, F_true = 0.95, 100.0
@@ -146,31 +152,15 @@ def test_band_monotonicity(rng):
     assert res.F_bid - 1e-15 <= res.F <= res.F_ask + 1e-15
 
 
+def _make_prices(K, D, F):
+    K = np.asarray(K, float)
+    y = D * (F - K)
+    P = 0.25 + 0.01 * (K - K.mean()) ** 2
+    C = P + y
+    return C, P
 
 
-
-
-
-
-
-
-
-
-# ============================================================================================================8356
-import numpy as np
-import pytest
-
-from volkit.implied.future_from_prices import (
-    implied_future_from_option_prices,
-    ImpliedFutureResult,
-    _as_np1d,
-    _constrained_ols_line,
-    _mad,
-    _mad_threshold,
-    _feasible_D_band_from_pairwise_slopes,
-    _forward_band_from_D_band,
-    _count_distinct,
-)
+# --------------------- public API error/edge coverage ---------------------
 
 
 def _make_prices(K, D, F):
@@ -182,31 +172,7 @@ def _make_prices(K, D, F):
 
 
 # --------------------- public API error/edge coverage ---------------------
-import numpy as np
-import pytest
 
-from volkit.implied.future_from_prices import (
-    implied_future_from_option_prices,
-    ImpliedFutureResult,
-    _as_np1d,
-    _constrained_ols_line,
-    _mad,
-    _mad_threshold,
-    _feasible_D_band_from_pairwise_slopes,
-    _forward_band_from_D_band,
-    _count_distinct,
-)
-
-
-def _make_prices(K, D, F):
-    K = np.asarray(K, float)
-    y = D * (F - K)
-    P = 0.25 + 0.01 * (K - K.mean()) ** 2
-    C = P + y
-    return C, P
-
-
-# --------------------- public API error/edge coverage ---------------------
 
 def test_api_rejects_non_1d_and_length_mismatch():
     K = np.array([[90.0, 100.0, 110.0]]).T  # 2-D column
@@ -286,6 +252,7 @@ def test_plot_branch_exception_is_swallowed():
 
 # --------------------- helper-level edge coverage ---------------------
 
+
 def test__constrained_ols_line_value_error_and_flat_case():
     # Value error when not enough points
     with pytest.raises(ValueError):
@@ -312,7 +279,12 @@ def test__feasible_D_band_edge_cases():
 
     # n < 2
     Dmn, Dmx = _feasible_D_band_from_pairwise_slopes(
-        np.array([100.0]), np.array([0.0]), q_low=0.25, q_high=0.75, clip_D=(1e-6, 1.0), eps=eps
+        np.array([100.0]),
+        np.array([0.0]),
+        q_low=0.25,
+        q_high=0.75,
+        clip_D=(1e-6, 1.0),
+        eps=eps,
     )
     assert (Dmn, Dmx) == (None, None)
 
@@ -383,6 +355,7 @@ def test_post_trim_distinct_collapse_returns_none():
     # This branch returns an all-false mask (zeros), not scatter-back
     assert mask.shape == (K.size,) and not mask.any()
 
+
 def test_d_band_inverted_clip_produces_degenerate_result():
     # With valid, linear data and an inverted clip_D, the implementation now
     # canonicalizes the clip bounds and returns a valid (possibly tight) band.
@@ -420,13 +393,6 @@ def test_trim_loop_completes_without_break_max_iter_1():
     assert mask.sum() < K.size  # outliers removed in the single iteration
 
 
-
-
-
-
-
-
-# ================================================================================================
 def test_fallback_band_when_forward_intersection_is_empty():
     # Construct a highly non-linear y = C - P curve:
     # y(K) = -0.97*K + 97 + 0.2*(K-100)^2
