@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 import numpy as np
-import matplotlib.pyplot as plt  # type: ignore
 
 __all__ = [
     "ImpliedFutureResult",
@@ -123,6 +122,7 @@ def _feasible_D_band_from_pairwise_slopes(
     # Do NOT clamp here; canonicalization/containment happens in _canon_D_band
     return float(D_lo_raw), float(D_hi_raw)
 
+
 def _forward_band_from_D_band(
     K: np.ndarray,
     y: np.ndarray,
@@ -165,7 +165,6 @@ def _forward_band_from_D_band(
     return F_lo, F_hi
 
 
-
 def _scatter_back_mask(
     base_mask: np.ndarray, idx: np.ndarray, inlier_local: np.ndarray
 ) -> np.ndarray:
@@ -173,6 +172,7 @@ def _scatter_back_mask(
     out_idx = idx[inlier_local]
     out[out_idx] = True
     return out
+
 
 def _canon_D_band(
     D_min: Optional[float],
@@ -190,7 +190,12 @@ def _canon_D_band(
     lo_c, hi_c = (c_lo, c_hi) if c_lo <= c_hi else (c_hi, c_lo)
 
     # Seed when band is missing or non-finite
-    if (D_min is None) or (D_max is None) or (not np.isfinite(D_min)) or (not np.isfinite(D_max)):
+    if (
+        (D_min is None)
+        or (D_max is None)
+        or (not np.isfinite(D_min))
+        or (not np.isfinite(D_max))
+    ):
         xm = float(np.clip(D_hat, lo_c, hi_c))
         return max(lo_c, xm - tiny), min(hi_c, xm + tiny)
 
@@ -213,7 +218,6 @@ def _canon_D_band(
 
     # Order is guaranteed here; returning directly removes an unreachable branch
     return float(d_lo), float(d_hi)
-
 
 
 # ------------------------------ public API -------------------------------------
@@ -287,7 +291,9 @@ def implied_future_from_option_prices(
             a_tol = abs_tol if abs_tol is not None else 0.0
             r_tol = rel_tol if rel_tol is not None else 0.0
             thresh = sig * scale
-            allow = np.abs(resid) <= (thresh + a_tol + r_tol * np.maximum(np.abs(yv), eps))
+            allow = np.abs(resid) <= (
+                thresh + a_tol + r_tol * np.maximum(np.abs(yv), eps)
+            )
         else:
             # Legacy MAD trimming
             thresh = _mad_threshold(resid[inlier], mult=trim_mad_mult, eps=eps)
@@ -348,7 +354,7 @@ def implied_future_from_option_prices(
 
     # Optional plot: fully guarded in try/except to never leak plot errors
     if plot:
-        
+
         implied_future_from_option_prices_plot(
             K=Kv,
             C=C[idx],
@@ -362,6 +368,5 @@ def implied_future_from_option_prices(
             D_display=(D_min + D_max) / 2,
             ax=ax,
         )
-
 
     return result, out_mask

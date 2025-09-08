@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def implied_future_from_option_prices_plot(
     K: np.ndarray,
     C: np.ndarray,
@@ -42,7 +43,9 @@ def implied_future_from_option_prices_plot(
     if in_K.size:
         ax_.scatter(in_K, in_F, s=18, label="per-strike F (inliers)", alpha=0.9)
     if out_K.size:
-        ax_.scatter(out_K, out_F, marker="x", label="per-strike F (outliers)", alpha=0.8)
+        ax_.scatter(
+            out_K, out_F, marker="x", label="per-strike F (outliers)", alpha=0.8
+        )
 
     ax_.axhline(F_bid, linestyle="--", color="black", linewidth=1.1, label="F_bid")
     ax_.axhline(F_ask, linestyle="--", color="black", linewidth=1.1, label="F_ask")
@@ -57,7 +60,13 @@ def implied_future_from_option_prices_plot(
 
     # Y padding (robust to empty outlier set)
     y_vals = np.array(
-        [F_bid, F_ask, F_hat, *(in_F.tolist() if in_K.size else []), *(out_F.tolist() if out_K.size else [])]
+        [
+            F_bid,
+            F_ask,
+            F_hat,
+            *(in_F.tolist() if in_K.size else []),
+            *(out_F.tolist() if out_K.size else []),
+        ]
     )
     y_vals = y_vals[np.isfinite(y_vals)]
     if y_vals.size:
@@ -65,4 +74,3 @@ def implied_future_from_option_prices_plot(
         ax_.set_ylim(y_vals.min() - pad, y_vals.max() + pad)
 
     ax_.legend(loc="best")
-

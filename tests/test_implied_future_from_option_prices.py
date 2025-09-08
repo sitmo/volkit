@@ -215,6 +215,7 @@ def test_negative_D_hat_returns_none_when_clip_allows():
     # finite_mask was all True, inliers start as all True, so scatter-back marks all
     assert mask.shape == (K.size,) and mask.all()
 
+
 # --------------------- helper-level edge coverage ---------------------
 
 
@@ -409,7 +410,6 @@ def test__forward_band_from_D_band_empty_intersection_branch():
     assert (Flo, Fhi) == (None, None)
 
 
-
 def test_sigma_scale_fallback_branch(rng):
     # Perfect linear data -> residuals zero -> MAD scale = 0 -> fallback scale path covered
     K = np.linspace(50, 150, 25)
@@ -427,7 +427,9 @@ def test_trim_loop_breaks_on_no_change_inliers(rng):
     C, P = _make_prices(K, D=D_true, F=F_true)
     noise = 1e-8 * (K - K.mean())  # tiny, below MAD threshold
     C = C + noise
-    res, mask = implied_future_from_option_prices(K, C, P, trim_mad_mult=3.5, max_trim_iters=5)
+    res, mask = implied_future_from_option_prices(
+        K, C, P, trim_mad_mult=3.5, max_trim_iters=5
+    )
     assert isinstance(res, ImpliedFutureResult)
     assert mask.all()
 
@@ -438,6 +440,7 @@ def test__forward_band_from_D_band_nan_discount_is_rejected():
     y = np.array([1.0, -1.0])
     Flo, Fhi = _forward_band_from_D_band(K, y, D_min=np.nan, D_max=0.95)
     assert (Flo, Fhi) == (None, None)
+
 
 def test__forward_band_from_D_band_nonpositive_discount_is_rejected():
     # Hits: if d[0] <= 0.0 -> return (None, None)

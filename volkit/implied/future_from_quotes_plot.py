@@ -69,7 +69,14 @@ def implied_future_from_option_quotes_plot(
             created_fig = True
         else:
             fig, created_fig = None, False
-        ax.text(0.5, 0.5, "No feasible result (res=None).", ha="center", va="center", transform=ax.transAxes)
+        ax.text(
+            0.5,
+            0.5,
+            "No feasible result (res=None).",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
         ax.set_xlabel("Strike K")
         ax.set_ylabel("Implied forward F")
         ax.set_title("Implied forward quotes — infeasible")
@@ -99,7 +106,14 @@ def implied_future_from_option_quotes_plot(
             created_fig = True
         else:
             fig, created_fig = None, False
-        ax.text(0.5, 0.5, "No finite per-strike forward quotes.", ha="center", va="center", transform=ax.transAxes)
+        ax.text(
+            0.5,
+            0.5,
+            "No finite per-strike forward quotes.",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
         ax.set_xlabel("Strike K")
         ax.set_ylabel("Implied forward F")
         ax.set_title("Implied forward quotes — empty")
@@ -127,7 +141,9 @@ def implied_future_from_option_quotes_plot(
         else:
             tick_idx = np.unique(np.linspace(0, len(xpos) - 1, max_xticks, dtype=int))
         ax.set_xticks(xpos[tick_idx])
-        ax.set_xticklabels([f"{v:g}" for v in Kp[tick_idx]], rotation=label_rotation, ha="right")
+        ax.set_xticklabels(
+            [f"{v:g}" for v in Kp[tick_idx]], rotation=label_rotation, ha="right"
+        )
         ax.set_xlim(-0.5, len(xpos) - 0.5)
         ax.set_xlabel("Strike K (labels; bars uniformly spaced)")
     else:
@@ -167,8 +183,17 @@ def implied_future_from_option_quotes_plot(
     n_drop = int(len(mask_p) - n_keep)
     handles = [
         Line2D([], [], color="green", linewidth=3.0, label=f"Kept ({n_keep})"),
-        Line2D([], [], color="red", linewidth=1.6, alpha=0.65, label=f"Dropped ({n_drop})"),
-        Line2D([], [], color="black", linestyle="--", linewidth=1.1, label="Global F_bid / F_ask"),
+        Line2D(
+            [], [], color="red", linewidth=1.6, alpha=0.65, label=f"Dropped ({n_drop})"
+        ),
+        Line2D(
+            [],
+            [],
+            color="black",
+            linestyle="--",
+            linewidth=1.1,
+            label="Global F_bid / F_ask",
+        ),
     ]
     ax.legend(handles=handles, loc="best", frameon=False)
 
