@@ -9,10 +9,10 @@ from matplotlib.lines import Line2D
 from volkit.estimate.future_res import ImpliedFutureResult
 
 
-def _per_strike_forward_quotes(
+def _per_strike_future_quotes(
     K, C_bid, C_ask, P_bid, P_ask, D_min, D_max
 ):  # pragma: no cover
-    """Per-strike feasible forward *quotes* using the shared D-band.
+    """Per-strike feasible future *quotes* using the shared D-band.
 
     For each strike, combine option quote bands with the discount band and
     project via put–call parity: F = K + y / D where y ∈ [Cb-Pa, Ca-Pb] and
@@ -52,7 +52,7 @@ def estimate_future_from_option_quotes_plot(
     max_xticks: int = 25,
     label_rotation: int = 45,
 ):  # pragma: no cover
-    """Plot per-strike implied forward *quotes* and the global forward band.
+    """Plot per-strike implied future *quotes* and the global future band.
 
     - Per-strike quotes are computed with the *same* D-band (res.D_min/res.D_max),
       ensuring each strike's interval contains the global intersection band.
@@ -78,8 +78,8 @@ def estimate_future_from_option_quotes_plot(
             transform=ax.transAxes,
         )
         ax.set_xlabel("Strike K")
-        ax.set_ylabel("Implied forward F")
-        ax.set_title("Implied forward quotes — infeasible")
+        ax.set_ylabel("Implied future F")
+        ax.set_title("Implied future quotes — infeasible")
         return fig if created_fig else ax
 
     # Validate / coerce inputs
@@ -90,8 +90,8 @@ def estimate_future_from_option_quotes_plot(
     Pa = np.asarray(Pa, float)
     mask = np.asarray(mask, bool)
 
-    # Compute per-strike forward quotes using the shared D-band
-    Fi_lo, Fi_hi = _per_strike_forward_quotes(K, Cb, Ca, Pb, Pa, res.D_min, res.D_max)
+    # Compute per-strike future quotes using the shared D-band
+    Fi_lo, Fi_hi = _per_strike_future_quotes(K, Cb, Ca, Pb, Pa, res.D_min, res.D_max)
 
     finite = (
         np.isfinite(K)
@@ -109,14 +109,14 @@ def estimate_future_from_option_quotes_plot(
         ax.text(
             0.5,
             0.5,
-            "No finite per-strike forward quotes.",
+            "No finite per-strike future quotes.",
             ha="center",
             va="center",
             transform=ax.transAxes,
         )
         ax.set_xlabel("Strike K")
-        ax.set_ylabel("Implied forward F")
-        ax.set_title("Implied forward quotes — empty")
+        ax.set_ylabel("Implied future F")
+        ax.set_title("Implied future quotes — empty")
         return fig if created_fig else ax
 
     # Sort by strike among valid points only
@@ -167,7 +167,7 @@ def estimate_future_from_option_quotes_plot(
     ax.axhline(res.F_bid, linestyle="--", color="black", linewidth=1.1)
     ax.axhline(res.F_ask, linestyle="--", color="black", linewidth=1.1)
 
-    ax.set_ylabel("Implied forward F (per-strike quotes, D-band)")
+    ax.set_ylabel("Implied future F (per-strike quotes, D-band)")
     ax.set_title(
         f"Global: F_bid={res.F_bid:.6g}, F_ask={res.F_ask:.6g};  D_bid={res.D_min:.6g}, D_ask={res.D_max:.6g}"
     )

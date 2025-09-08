@@ -17,7 +17,7 @@ def estimate_future_from_option_prices_plot(
     ax=None,
 ) -> None:  # pragma: no cover
     """
-    Best-effort plot of per-strike implied forwards.
+    Best-effort plot of per-strike implied futures.
     - Computes y = C - P internally
     - Uses provided D_display (already chosen by caller)
     - Draws inlier/outlier scatter and horizontal F̂ / [F_bid,F_ask] lines
@@ -54,7 +54,7 @@ def estimate_future_from_option_prices_plot(
     ax_.set_xlabel("Strike K")
     ax_.set_ylabel(f"Implied future F @ D_display={D_plot:.6g}")
     ax_.set_title(
-        f"Implied forwards per strike — F_bid={F_bid:.6g}, F_ask={F_ask:.6g}; "
+        f"Implied futures per strike — F_bid={F_bid:.6g}, F_ask={F_ask:.6g}; "
         f"D∈[{float(D_min):.6g},{float(D_max):.6g}]"
     )
 

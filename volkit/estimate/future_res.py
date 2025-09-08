@@ -3,11 +3,11 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class ImpliedFutureResult:  # pragma: no cover
-    """Compact result for implied forward/discount from quotes."""
+    """Compact result for implied future/discount from quotes."""
 
-    F: float  # point forward (mid-band)
-    F_bid: float  # lower bound on forward
-    F_ask: float  # upper bound on forward
+    F: float  # point future (mid-band)
+    F_bid: float  # lower bound on future
+    F_ask: float  # upper bound on future
     D: float  # point discount factor
     D_min: float  # lower bound on discount factor (D = e^{-rT})
     D_max: float  # upper bound on discount factor

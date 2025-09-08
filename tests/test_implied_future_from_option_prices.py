@@ -11,7 +11,7 @@ from volkit.estimate.future_from_option_prices import (
     _mad,
     _mad_threshold,
     _feasible_D_band_from_pairwise_slopes,
-    _forward_band_from_D_band,
+    _future_band_from_D_band,
     _count_distinct,
     _canon_D_band,
 )
@@ -278,8 +278,8 @@ def test__feasible_D_band_edge_cases():
     assert (Dmn, Dmx) == (None, None)
 
 
-def test__forward_band_from_D_band_empty_inputs():
-    F_lo, F_hi = _forward_band_from_D_band(np.array([]), np.array([]), 0.9, 0.95)
+def test__future_band_from_D_band_empty_inputs():
+    F_lo, F_hi = _future_band_from_D_band(np.array([]), np.array([]), 0.9, 0.95)
     assert (F_lo, F_hi) == (None, None)
 
 
@@ -352,9 +352,9 @@ def test_trim_loop_completes_without_break_max_iter_1():
     assert mask.sum() < K.size  # outliers removed in the single iteration
 
 
-def test_fallback_band_when_forward_intersection_is_empty():
+def test_fallback_band_when_future_intersection_is_empty():
     """
-    With the inlier-quantile band + convex hull, an empty forward intersection
+    With the inlier-quantile band + convex hull, an empty future intersection
     no longer collapses to a tiny band; the final F-band reflects cross-sectional
     dispersion. We only assert containment and a non-trivial width.
     """
@@ -403,11 +403,11 @@ def test__canon_D_band_collapses_when_band_outside_clip():
     assert D_min <= 0.55 <= D_max  # contains D_hat
 
 
-def test__forward_band_from_D_band_empty_intersection_branch():
+def test__future_band_from_D_band_empty_intersection_branch():
     # Two strikes create disjoint F-intervals for D∈[0.5,1.0]
     K = np.array([0.0, 1.0])
     y = np.array([+1.0, -1.0])
-    Flo, Fhi = _forward_band_from_D_band(K, y, D_min=0.5, D_max=1.0)
+    Flo, Fhi = _future_band_from_D_band(K, y, D_min=0.5, D_max=1.0)
     assert (Flo, Fhi) == (None, None)
 
 
@@ -435,17 +435,17 @@ def test_trim_loop_breaks_on_no_change_inliers(rng):
     assert mask.all()
 
 
-def test__forward_band_from_D_band_nan_discount_is_rejected():
+def test__future_band_from_D_band_nan_discount_is_rejected():
     # Hits: if not np.all(np.isfinite(d)) -> return (None, None)
     K = np.array([100.0, 101.0])
     y = np.array([1.0, -1.0])
-    Flo, Fhi = _forward_band_from_D_band(K, y, D_min=np.nan, D_max=0.95)
+    Flo, Fhi = _future_band_from_D_band(K, y, D_min=np.nan, D_max=0.95)
     assert (Flo, Fhi) == (None, None)
 
 
-def test__forward_band_from_D_band_nonpositive_discount_is_rejected():
+def test__future_band_from_D_band_nonpositive_discount_is_rejected():
     # Hits: if d[0] <= 0.0 -> return (None, None)
     K = np.array([100.0, 101.0])
     y = np.array([1.0, -1.0])
-    Flo, Fhi = _forward_band_from_D_band(K, y, D_min=-1e-4, D_max=0.5)
+    Flo, Fhi = _future_band_from_D_band(K, y, D_min=-1e-4, D_max=0.5)
     assert (Flo, Fhi) == (None, None)

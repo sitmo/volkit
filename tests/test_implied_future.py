@@ -6,7 +6,7 @@ from volkit.estimate.future_from_option_quotes import (
     _max_overlap_subset_at_D,
     _feasible_D_interval_for_subset,
     _width_candidate_discounts_for_subset,
-    _forward_band_for_subset_at_D,
+    _future_band_for_subset_at_D,
     _filter_and_sort_finite,
     _with_midpoints,
     _choose_subset_with_fallback,
@@ -40,7 +40,7 @@ def make_parity_consistent_quotes(K, F, D, s_call=0.4, s_put=0.6):
     return Cb, Ca, Pb, Pa
 
 
-def test_known_forward_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
+def test_known_future_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
     # Known setup
     K = np.array([3900, 3950, 4000, 4050, 4100, 4150], dtype=float)
 
@@ -74,7 +74,7 @@ def test_known_forward_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
     assert mask.shape == K_with_nan.shape
     assert mask[:-1].all() and not mask[-1]
 
-    # The forward band should straddle F_true with known width ~ (s_c + s_p)/D
+    # The future band should straddle F_true with known width ~ (s_c + s_p)/D
     band_half = (s_c + s_p) / D_true
     assert np.isclose(result.F, F_true, rtol=0, atol=1e-9)
     assert np.isclose(result.F_bid, F_true - band_half, rtol=0, atol=1e-9)
@@ -111,7 +111,7 @@ def test_arb_row_is_excluded_and_valid_subset_has_overlap():
     kept_idx = np.nonzero(mask)[0].tolist()
     assert kept_idx == [0, 2]
 
-    # Forward still close to true (inferred from the two good rows)
+    # future still close to true (inferred from the two good rows)
     assert np.isclose(result.F, F_true, atol=1e-8)
     assert result.F_bid <= result.F <= result.F_ask
 
@@ -201,14 +201,14 @@ def test__width_candidate_discounts_for_subset_includes_midpoints_and_endpoints(
     assert np.all(np.diff(Ds) >= 0)
 
 
-def test__forward_band_for_subset_at_D_basic():
+def test__future_band_for_subset_at_D_basic():
     K = np.array([100.0, 110.0, 120.0])
     # Very wide per-strike intervals so their intersection is non-empty at D=0.95
     L = np.array([-1000.0, -1000.0, -1000.0])
     U = np.array([+1000.0, +1000.0, +1000.0])
     S = np.array([0, 1, 2], dtype=int)
     D = 0.95
-    F_bid, F_ask = _forward_band_for_subset_at_D(K, L, U, S, D)
+    F_bid, F_ask = _future_band_for_subset_at_D(K, L, U, S, D)
     assert np.isfinite(F_bid) and np.isfinite(F_ask)
     assert F_bid <= F_ask
 
@@ -434,7 +434,7 @@ def test__choose_subset_with_fallback_skips_depth1_and_selects_best():
     assert F_bid <= F_ask
 
     # Sanity: width positive at chosen D
-    Fb2, Fa2 = _forward_band_for_subset_at_D(K, L, U, np.array(subset_key, int), D_star)
+    Fb2, Fa2 = _future_band_for_subset_at_D(K, L, U, np.array(subset_key, int), D_star)
     assert Fa2 - Fb2 >= 0.0
 
 

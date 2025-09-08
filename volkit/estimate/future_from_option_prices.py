@@ -12,7 +12,7 @@ __all__ = [
     "_mad",
     "_mad_threshold",
     "_feasible_D_band_from_pairwise_slopes",
-    "_forward_band_from_D_band",
+    "_future_band_from_D_band",
     "_count_distinct",
     "_canon_D_band",
 ]
@@ -123,14 +123,14 @@ def _feasible_D_band_from_pairwise_slopes(
     return float(D_lo_raw), float(D_hi_raw)
 
 
-def _forward_band_from_D_band(
+def _future_band_from_D_band(
     K: np.ndarray,
     y: np.ndarray,
     D_min: Optional[float],
     D_max: Optional[float],
 ) -> Tuple[Optional[float], Optional[float]]:
     """
-    Intersect per-strike forward intervals induced by D ∈ [D_min, D_max].
+    Intersect per-strike future intervals induced by D ∈ [D_min, D_max].
     Vectorized, low-branch version:
       • Guards: shape/None/finite/positive
       • Computes per-strike [lo_i, hi_i] with a single min/max
@@ -240,7 +240,7 @@ def estimate_future_from_option_prices(
     rel_tol: Optional[float] = None,
     abs_tol: Optional[float] = None,
 ) -> Tuple[Optional[ImpliedFutureResult], np.ndarray]:
-    """Infer forward F and discount factor D from *single* option prices.
+    """Infer future F and discount factor D from *single* option prices.
 
     Returns
     -------
@@ -328,7 +328,7 @@ def estimate_future_from_option_prices(
     D_min, D_max = _canon_D_band(raw_D_min, raw_D_max, D_hat, c_lo, c_hi, tiny)
 
     # Map D band to F band
-    F_lo, F_hi = _forward_band_from_D_band(Kv[inlier], yv[inlier], D_min, D_max)
+    F_lo, F_hi = _future_band_from_D_band(Kv[inlier], yv[inlier], D_min, D_max)
 
     # Fallback: contain the point estimate tightly when mapping failed/empty
     if (F_lo is None) or (F_hi is None) or (F_lo > F_hi):

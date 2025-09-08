@@ -28,7 +28,7 @@ def estimate_future_from_option_quotes(
     ax=None,
 ) -> Tuple[Optional[ImpliedFutureResult], np.ndarray]:
     """
-    Robust single-expiry inference with minimal exclusions + max-width forward band.
+    Robust single-expiry inference with minimal exclusions + max-width future band.
 
     Returns
     -------
@@ -45,7 +45,7 @@ def estimate_future_from_option_quotes(
       of Ds == ∅ *and* there exist ≥2 distinct strikes among valid rows. If all valid
       rows share the same strike (e.g., duplicates-only situation), the mask is all False.
     - Duplicate-K subsets are rejected when selecting the final subset (they do not
-      define a forward band).
+      define a future band).
     - Selection across depths: we try the highest feasible depth first, then fall back
       to lower depths (≥2). Within a depth, we choose the subset/D that maximizes width.
     """
@@ -332,7 +332,7 @@ def _width_candidate_discounts_for_subset(
     eps: float,
 ) -> np.ndarray:
     """
-    Candidate Ds to check the forward band width on a fixed subset S: endpoints of the
+    Candidate Ds to check the future band width on a fixed subset S: endpoints of the
     feasible interval plus cross-equalities among a_i/b_i for i∈S within [D_lo, D_hi].
     """
     Ks, Ls, Us = K[S], L[S], U[S]
@@ -357,7 +357,7 @@ def _width_candidate_discounts_for_subset(
     return Ds
 
 
-def _forward_band_for_subset_at_D(
+def _future_band_for_subset_at_D(
     K: np.ndarray, L: np.ndarray, U: np.ndarray, S: np.ndarray, D: float
 ) -> Tuple[float, float]:
     """
@@ -415,7 +415,7 @@ def _choose_subset_with_fallback(
                 continue
 
             for D in D_cands:
-                F_bid, F_ask = _forward_band_for_subset_at_D(K, L, U, S_sorted, D)
+                F_bid, F_ask = _future_band_for_subset_at_D(K, L, U, S_sorted, D)
                 w = F_ask - F_bid
                 if (w > best_w + 1e-15) or (
                     abs(w - best_w) <= 1e-15 and (best is None or D < best[0])
