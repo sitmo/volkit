@@ -39,8 +39,8 @@ Broadcasting Basics <examples/broadcasting>
 Implied Volatilities <examples/estimate_vol_from_option_prices>
 Implied Futures from Options Price <examples/estimate_future_from_option_prices>
 Implied Futures from Options Quotes <examples/estimate_future_from_option_quotes>
+Detecting Arbitrage (single Expiry) <examples/arb_prices_single_expiry.ipynb>
 Datasets: SPXW <examples/spxw_dataset.ipynb>
-
 ```
 
 

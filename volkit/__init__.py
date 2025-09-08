@@ -19,6 +19,8 @@ from .estimate.future_res import ImpliedFutureResult
 
 from .estimate.vol_from_option_prices import estimate_vol_from_option_prices
 
+from .arb.prices_single_expiry import arb_from_option_prices_single_expiry
+
 from .utils import discount_to_rate, rate_to_discount
 
 __all__ = [
@@ -39,6 +41,7 @@ __all__ = [
     "ImpliedFutureResult",
     "discount_to_rate",
     "rate_to_discount",
+    "arb_from_option_prices_single_expiry",
 ]
 
 __version__ = "0.2.1"
