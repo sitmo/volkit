@@ -28,13 +28,14 @@ sphinx-autodoc-typehints = { version = ">=2.2", optional = true }
 # --- development tools (installed via --with dev) ---
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.7"
-bump-my-version = "^1.2.1"
+bump-my-version = "^1.2"
 ruff = "^0.5"
 black = "^24.0"
 pytest = "^8.0"
-pytest-cov = "^6.2.1"
-coverage = "^7.10.6"
-nbformat = "^5.1.4"
+pytest-cov = "^6.2"
+coverage = "^7.10"
+nbformat = "^5.1"
+matplotlib = "^3.8"
 
 [tool.poetry.extras]
 docs = ["sphinx", "myst-nb", "furo", "sphinx-copybutton", "matplotlib", "matplotlib-inline", "pandas", "sphinx-autodoc-typehints"]
