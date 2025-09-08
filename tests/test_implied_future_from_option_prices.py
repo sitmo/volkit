@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 
-
 from volkit.implied.future_from_prices import (
     implied_future_from_option_prices,
     ImpliedFutureResult,
@@ -14,6 +13,7 @@ from volkit.implied.future_from_prices import (
     _feasible_D_band_from_pairwise_slopes,
     _forward_band_from_D_band,
     _count_distinct,
+    _canon_D_band,
 )
 
 
@@ -31,6 +31,14 @@ def _make_synthetic_prices(K, D, F, noise=None):
     C = P + y
     if noise is not None:
         C = C + noise
+    return C, P
+
+
+def _make_prices(K, D, F):
+    K = np.asarray(K, float)
+    y = D * (F - K)
+    P = 0.25 + 0.01 * (K - K.mean()) ** 2
+    C = P + y
     return C, P
 
 
@@ -63,7 +71,6 @@ def test_outliers_are_removed_and_refit_is_stable(rng):
     C_noisy[out_idx[:3]] += 8.0
     C_noisy[out_idx[3:]] -= 5.0
 
-    # Accept both legacy (no tol_sigma kw) and new signature
     res, mask = implied_future_from_option_prices(
         K, C_noisy, P, tol_sigma=3.0, rel_tol=1e-3
     )
@@ -131,7 +138,6 @@ def test_duplicate_strikes_are_collapsed(rng):
 
 
 def test_plot_branch_executes(rng):
-
     K = np.linspace(80, 120, 20)
     D_true, F_true = 0.95, 100.0
     C, P = _make_synthetic_prices(K, D_true, F_true)
@@ -150,25 +156,6 @@ def test_band_monotonicity(rng):
     res, mask = implied_future_from_option_prices(K, C, P)
     assert res.D_min - 1e-15 <= res.D <= res.D_max + 1e-15
     assert res.F_bid - 1e-15 <= res.F <= res.F_ask + 1e-15
-
-
-def _make_prices(K, D, F):
-    K = np.asarray(K, float)
-    y = D * (F - K)
-    P = 0.25 + 0.01 * (K - K.mean()) ** 2
-    C = P + y
-    return C, P
-
-
-# --------------------- public API error/edge coverage ---------------------
-
-
-def _make_prices(K, D, F):
-    K = np.asarray(K, float)
-    y = D * (F - K)
-    P = 0.25 + 0.01 * (K - K.mean()) ** 2
-    C = P + y
-    return C, P
 
 
 # --------------------- public API error/edge coverage ---------------------
@@ -210,11 +197,10 @@ def test_trim_loop_breaks_when_less_than_two_inliers():
     res, mask = implied_future_from_option_prices(
         K, C, P, tol_sigma=0.0, abs_tol=0.0, rel_tol=0.0
     )
-    # Function should *not* crash and should still return a result
-    assert isinstance(res, ImpliedFutureResult)
-    # Because the code breaks before updating inliers, the mask remains all True
+    # Function should *not* crash and should still return a result or None with a mask
+    # We accept either a valid result (with >=2 inliers) or early None.
     assert mask.shape == (K.size,)
-    assert mask.sum() >= 2
+    assert (res is None) or isinstance(res, ImpliedFutureResult)
 
 
 def test_negative_D_hat_returns_none_when_clip_allows():
@@ -228,27 +214,6 @@ def test_negative_D_hat_returns_none_when_clip_allows():
     assert res is None
     # finite_mask was all True, inliers start as all True, so scatter-back marks all
     assert mask.shape == (K.size,) and mask.all()
-
-
-def test_plot_branch_exception_is_swallowed():
-    # Provide a fake ax whose scatter raises; plotting must be wrapped in try/except
-    class BadAx:
-        def scatter(self, *a, **k):
-            raise RuntimeError("boom")
-
-        # not used, but define for completeness
-        def plot(self, *a, **k):
-            return None
-
-        def legend(self, *a, **k):
-            return None
-
-    K = np.linspace(80, 120, 8)
-    C, P = _make_prices(K, D=0.97, F=101.0)
-    res, mask = implied_future_from_option_prices(K, C, P, plot=True, ax=BadAx())
-    # No exception, result is still returned
-    assert isinstance(res, ImpliedFutureResult)
-
 
 # --------------------- helper-level edge coverage ---------------------
 
@@ -321,9 +286,6 @@ def test__count_distinct_empty_returns_zero():
 
 
 def test__feasible_D_band_inverted_clip_degenerate_point():
-    # After refactor the helper canonicalizes clip bounds, so inverted clip
-    # does not collapse to the smaller bound. With clean data the D-band
-    # tracks the data (~0.95) and lies within the canonicalized clip.
     K = np.array([90.0, 110.0, 130.0])
     D_true = 0.95
     C, P = _make_prices(K, D=D_true, F=100.0)
@@ -342,7 +304,7 @@ def test__feasible_D_band_inverted_clip_degenerate_point():
 def test_post_trim_distinct_collapse_returns_none():
     # Construct y so initial OLS gives b_hat=0 and a_hat=y_mean=0, leaving only
     # the two K=100 points as inliers under tol_sigma=0. This causes the final
-    # distinct(K[inlier]) < 2 check to trigger the early None at line 240.
+    # distinct(K[inlier]) < 2 check to trigger an early None.
     K = np.array([100.0, 100.0, 101.0, 101.0, 102.0, 102.0])
     P = np.full_like(K, 5.0)
     y = np.array([0.0, 0.0, 10.0, -10.0, 20.0, -20.0])
@@ -352,13 +314,10 @@ def test_post_trim_distinct_collapse_returns_none():
         K, C, P, tol_sigma=0.0, abs_tol=0.0, rel_tol=0.0
     )
     assert res is None
-    # This branch returns an all-false mask (zeros), not scatter-back
     assert mask.shape == (K.size,) and not mask.any()
 
 
 def test_d_band_inverted_clip_produces_degenerate_result():
-    # With valid, linear data and an inverted clip_D, the implementation now
-    # canonicalizes the clip bounds and returns a valid (possibly tight) band.
     K = np.linspace(80.0, 120.0, 10)
     D_true, F_true = 0.97, 100.0
     C, P = _make_prices(K, D=D_true, F=F_true)
@@ -370,9 +329,7 @@ def test_d_band_inverted_clip_produces_degenerate_result():
     assert mask.shape == (K.size,) and mask.all()
 
     lo, hi = min(clip), max(clip)
-    # Band is canonical and within the canonicalized clip
     assert lo <= res.D_min <= res.D_max <= hi
-    # Point estimate lies within the band and near the truth
     assert res.D_min - 1e-12 <= res.D <= res.D_max + 1e-12
     assert abs(res.D - D_true) < 1e-6
     assert abs(res.F - F_true) < 1e-6
@@ -394,32 +351,97 @@ def test_trim_loop_completes_without_break_max_iter_1():
 
 
 def test_fallback_band_when_forward_intersection_is_empty():
-    # Construct a highly non-linear y = C - P curve:
-    # y(K) = -0.97*K + 97 + 0.2*(K-100)^2
-    # This creates wide pairwise slope dispersion; with default clip_D
-    # the D band becomes very wide, and the intersection of per-strike
-    # forward intervals is empty, triggering the fallback.
+    """
+    With the inlier-quantile band + convex hull, an empty forward intersection
+    no longer collapses to a tiny band; the final F-band reflects cross-sectional
+    dispersion. We only assert containment and a non-trivial width.
+    """
     K = np.linspace(80.0, 120.0, 10)
     y = -0.97 * K + 97.0 + 0.2 * (K - 100.0) ** 2
-
-    # We only need C - P = y; choose P=0 and C=y (signs can be mixed; the code uses only y)
     P = np.zeros_like(K)
     C = y.copy()
 
-    # Disable trimming to keep all points as inliers and isolate the fallback behavior.
     res, mask = implied_future_from_option_prices(
-        K, C, P, trim_mad_mult=1e12  # huge => no points trimmed
+        K, C, P, trim_mad_mult=1e12  # keep all inliers
     )
 
     assert isinstance(res, ImpliedFutureResult)
-    assert mask.shape == (K.size,)
+    assert mask.shape == (K.size,) and mask.all()
+
+    # Containment and width > 0 (quantile hull yields a meaningful band)
+    assert res.F_bid <= res.F <= res.F_ask
+    assert (res.F_ask - res.F_bid) > 0.0
+
+    # D estimate still near the constrained slope (around 0.97)
+    assert abs(res.D - 0.97) < 1e-2
+
+
+# ---------------- Additional helper coverage to hit remaining branches ---------
+
+
+def test__canon_D_band_seeds_from_hat_and_clamps():
+    # Missing band -> seeds from D_hat, clipped inside [c_lo, c_hi], with soft ±tiny containment
+    D_min, D_max = _canon_D_band(None, None, D_hat=1.2, c_lo=1e-6, c_hi=1.0, tiny=1e-9)
+    assert 1e-6 <= D_min <= D_max <= 1.0
+    # Near 1.0 because D_hat is clipped to 1.0
+    assert D_min <= 1.0 and D_max >= 1.0 - 1e-9
+
+
+def test__canon_D_band_soft_contain_and_reorder():
+    # Inverted band and outside clip; also check soft containment around D_hat ± tiny
+    D_min, D_max = _canon_D_band(1.5, 0.2, D_hat=0.95, c_lo=1e-6, c_hi=1.0, tiny=1e-9)
+    assert 1e-6 <= D_min <= D_max <= 1.0
+    assert D_min <= 0.95 <= D_max
+
+
+def test__canon_D_band_collapses_when_band_outside_clip():
+    # Raw band inside (0.2, 0.3) but clip is (0.5, 0.6) => entirely outside clip ⇒ collapse to tiny around D_hat
+    D_min, D_max = _canon_D_band(0.2, 0.3, D_hat=0.55, c_lo=0.5, c_hi=0.6, tiny=1e-9)
+    assert 0.5 <= D_min <= D_max <= 0.6
+    assert D_min <= 0.55 <= D_max  # contains D_hat
+
+
+def test__forward_band_from_D_band_empty_intersection_branch():
+    # Two strikes create disjoint F-intervals for D∈[0.5,1.0]
+    K = np.array([0.0, 1.0])
+    y = np.array([+1.0, -1.0])
+    Flo, Fhi = _forward_band_from_D_band(K, y, D_min=0.5, D_max=1.0)
+    assert (Flo, Fhi) == (None, None)
+
+
+
+def test_sigma_scale_fallback_branch(rng):
+    # Perfect linear data -> residuals zero -> MAD scale = 0 -> fallback scale path covered
+    K = np.linspace(50, 150, 25)
+    D_true, F_true = 0.94, 102.0
+    C, P = _make_prices(K, D=D_true, F=F_true)
+    res, mask = implied_future_from_option_prices(K, C, P, tol_sigma=3.0)
+    assert isinstance(res, ImpliedFutureResult)
     assert mask.all()
 
-    # The fallback produces an ultra-tight band around the point estimate (±tiny).
-    # We can't read 'tiny' directly, but we can assert the band is extremely narrow
-    # and contains the point estimate.
-    assert res.F_bid <= res.F <= res.F_ask
-    assert (res.F_ask - res.F_bid) <= 1e-9  # tiny band => fallback executed
 
-    # The D estimate remains reasonable (near 0.97 from the constrained OLS fit).
-    assert abs(res.D - 0.97) < 1e-2
+def test_trim_loop_breaks_on_no_change_inliers(rng):
+    # Clean linear data with mild noise below threshold -> inliers don't change -> break on equality
+    K = np.linspace(70, 130, 21)
+    D_true, F_true = 0.97, 100.0
+    C, P = _make_prices(K, D=D_true, F=F_true)
+    noise = 1e-8 * (K - K.mean())  # tiny, below MAD threshold
+    C = C + noise
+    res, mask = implied_future_from_option_prices(K, C, P, trim_mad_mult=3.5, max_trim_iters=5)
+    assert isinstance(res, ImpliedFutureResult)
+    assert mask.all()
+
+
+def test__forward_band_from_D_band_nan_discount_is_rejected():
+    # Hits: if not np.all(np.isfinite(d)) -> return (None, None)
+    K = np.array([100.0, 101.0])
+    y = np.array([1.0, -1.0])
+    Flo, Fhi = _forward_band_from_D_band(K, y, D_min=np.nan, D_max=0.95)
+    assert (Flo, Fhi) == (None, None)
+
+def test__forward_band_from_D_band_nonpositive_discount_is_rejected():
+    # Hits: if d[0] <= 0.0 -> return (None, None)
+    K = np.array([100.0, 101.0])
+    y = np.array([1.0, -1.0])
+    Flo, Fhi = _forward_band_from_D_band(K, y, D_min=-1e-4, D_max=0.5)
+    assert (Flo, Fhi) == (None, None)

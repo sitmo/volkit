@@ -1,17 +1,25 @@
-# file: implied_future_from_option_prices.py
+# file: volkit/implied/future_from_prices.py
 from __future__ import annotations
 
 from typing import Optional, Tuple
 
 import numpy as np
+import matplotlib.pyplot as plt  # type: ignore
 
 __all__ = [
     "ImpliedFutureResult",
     "implied_future_from_option_prices",
+    "_constrained_ols_line",
+    "_mad",
+    "_mad_threshold",
+    "_feasible_D_band_from_pairwise_slopes",
+    "_forward_band_from_D_band",
+    "_count_distinct",
+    "_canon_D_band",
 ]
 
 from .future_res import ImpliedFutureResult
-
+from .future_from_prices_plot import implied_future_from_option_prices_plot
 
 # --------------------------- helpers (private) ---------------------------------
 
@@ -41,7 +49,7 @@ def _count_distinct(x: np.ndarray, eps: float) -> int:
 def _constrained_ols_line(
     K: np.ndarray, y: np.ndarray, *, eps: float
 ) -> Tuple[float, float]:
-    """Return (a, b) minimizing ||y - (a + bK)||^2 with *slope constraint* b ∈ [-1, 0]."""
+    """Return (a, b) minimizing ||y - (a + bK)||^2 with slope constraint b ∈ [-1, 0]."""
     if K.size != y.size or K.size < 2:
         raise ValueError("Need at least two points for OLS line")
 
@@ -82,8 +90,8 @@ def _feasible_D_band_from_pairwise_slopes(
     eps: float,
 ) -> Tuple[Optional[float], Optional[float]]:
     """
-    Return a robust D band from pairwise slopes s_ij = (y_i - y_j)/(K_i - K_j)
-    via quantiles, with a single clamp to canonical clip bounds.
+    Robust D band from pairwise slopes s_ij = (y_i - y_j)/(K_i - K_j) via quantiles.
+    Returns (D_min, D_max) possibly as None if insufficient/degenerate data.
     """
     n = K.size
     if n < 2:
@@ -106,40 +114,56 @@ def _feasible_D_band_from_pairwise_slopes(
     if s_all.size == 0:
         return None, None
 
-    # Quantiles in one pass; canonicalize order
     lo_q, hi_q = np.quantile(s_all, (q_low, q_high))
     s_lo, s_hi = sorted((float(lo_q), float(hi_q)))  # s_lo <= s_hi
 
-    # D = -s ⇒ order flips
+    # D = -s (order flips)
     D_lo_raw, D_hi_raw = -s_hi, -s_lo  # D_lo_raw <= D_hi_raw
 
-    # Canonicalize clip bounds and clamp once
-    c_lo, c_hi = clip_D if clip_D[0] <= clip_D[1] else (clip_D[1], clip_D[0])
-    D_min = max(c_lo, D_lo_raw)
-    D_max = min(c_hi, D_hi_raw)
-
-    return D_min, D_max
-
+    # Do NOT clamp here; canonicalization/containment happens in _canon_D_band
+    return float(D_lo_raw), float(D_hi_raw)
 
 def _forward_band_from_D_band(
     K: np.ndarray,
     y: np.ndarray,
-    D_min: float,
-    D_max: float,
+    D_min: Optional[float],
+    D_max: Optional[float],
 ) -> Tuple[Optional[float], Optional[float]]:
-    """Intersect per-strike forward intervals induced by [D_min, D_max]."""
-    if K.size == 0:
+    """
+    Intersect per-strike forward intervals induced by D ∈ [D_min, D_max].
+    Vectorized, low-branch version:
+      • Guards: shape/None/finite/positive
+      • Computes per-strike [lo_i, hi_i] with a single min/max
+      • Intersects across strikes; empty ⇒ (None, None)
+    """
+    # Basic shape/None guards
+    if K.size == 0 or y.size == 0 or K.size != y.size or D_min is None or D_max is None:
         return None, None
-    F_lo = -np.inf
-    F_hi = np.inf
-    for Ki, yi in zip(K, y):
-        f1 = Ki + yi / D_min
-        f2 = Ki + yi / D_max
-        lo_i = min(f1, f2)
-        hi_i = max(f1, f2)
-        F_lo = max(F_lo, lo_i)
-        F_hi = min(F_hi, hi_i)
-    return float(F_lo), float(F_hi)
+
+    # Finite + ordered positive D-band
+    d = np.array([D_min, D_max], dtype=float)
+    if not np.all(np.isfinite(d)):
+        return None, None
+    d.sort()
+    if d[0] <= 0.0:
+        return None, None
+    D_lo, D_hi = float(d[0]), float(d[1])
+
+    # Vectorized per-strike intervals over D∈[D_lo,D_hi]
+    f_at_lo = K + y / D_lo
+    f_at_hi = K + y / D_hi
+    lo_i = np.minimum(f_at_lo, f_at_hi)
+    hi_i = np.maximum(f_at_lo, f_at_hi)
+
+    # Intersection across strikes
+    F_lo = float(np.max(lo_i)) if lo_i.size else -np.inf
+    F_hi = float(np.min(hi_i)) if hi_i.size else np.inf
+
+    # Empty or non-finite => no feasible intersection
+    if not (np.isfinite(F_lo) and np.isfinite(F_hi)) or F_lo > F_hi:
+        return None, None
+    return F_lo, F_hi
+
 
 
 def _scatter_back_mask(
@@ -150,6 +174,47 @@ def _scatter_back_mask(
     out[out_idx] = True
     return out
 
+def _canon_D_band(
+    D_min: Optional[float],
+    D_max: Optional[float],
+    D_hat: float,
+    c_lo: float,
+    c_hi: float,
+    tiny: float,
+) -> Tuple[float, float]:
+    """
+    Canonicalize (order), clamp to [c_lo, c_hi], and softly contain D_hat±tiny.
+    If the incoming band is missing/invalid or entirely outside the clip,
+    seed with a soft band around D_hat. Always returns an ordered pair.
+    """
+    lo_c, hi_c = (c_lo, c_hi) if c_lo <= c_hi else (c_hi, c_lo)
+
+    # Seed when band is missing or non-finite
+    if (D_min is None) or (D_max is None) or (not np.isfinite(D_min)) or (not np.isfinite(D_max)):
+        xm = float(np.clip(D_hat, lo_c, hi_c))
+        return max(lo_c, xm - tiny), min(hi_c, xm + tiny)
+
+    # Order raw band
+    d_lo, d_hi = (D_min, D_max) if D_min <= D_max else (D_max, D_min)
+
+    # Entirely outside clip ⇒ collapse near D_hat
+    if (d_hi < lo_c) or (d_lo > hi_c):
+        xm = float(np.clip(D_hat, lo_c, hi_c))
+        return max(lo_c, xm - tiny), min(hi_c, xm + tiny)
+
+    # Clamp and keep order
+    d_lo = max(lo_c, d_lo)
+    d_hi = min(hi_c, d_hi)
+
+    # Softly contain D_hat ± tiny (these ops cannot invert order for tiny ≥ 0)
+    xm = float(np.clip(D_hat, lo_c, hi_c))
+    d_lo = min(d_lo, xm + tiny)
+    d_hi = max(d_hi, xm - tiny)
+
+    # Order is guaranteed here; returning directly removes an unreachable branch
+    return float(d_lo), float(d_hi)
+
+
 
 # ------------------------------ public API -------------------------------------
 
@@ -159,38 +224,28 @@ def implied_future_from_option_prices(
     call: np.ndarray,
     put: np.ndarray,
     *,
-    # Common knobs
     eps: float = 1e-12,
     plot: bool = False,
     ax=None,
-    # Legacy/initial implementation knobs
-    ransac: bool = False,
     slope_quantiles: Tuple[float, float] = (0.25, 0.75),
     clip_D: Tuple[float, float] = (1e-6, 1.0),
     trim_mad_mult: float = 3.5,
     max_trim_iters: int = 5,
-    # Newer optional knobs (kept optional for backward compatibility in callers)
+    # optional, robust thresholds
     tol_sigma: Optional[float] = None,
     rel_tol: Optional[float] = None,
     abs_tol: Optional[float] = None,
 ) -> Tuple[Optional[ImpliedFutureResult], np.ndarray]:
-    """Infer forward ``F`` and discount factor ``D`` from *single* option prices.
+    """Infer forward F and discount factor D from *single* option prices.
 
     Returns
     -------
     (result, valid_mask)
         result : ImpliedFutureResult or None
-            ``None`` if fewer than 2 distinct strikes (after filtering) or no
+            None if fewer than 2 distinct strikes (after filtering) or no
             feasible band could be established.
         valid_mask : ndarray of bool, shape (len(K),)
             In ORIGINAL input order. True if a strike was used in the solution.
-
-    Notes
-    -----
-    • This mirrors the quote-based API. Intervals (F_bid/F_ask, D_min/D_max)
-      are data-implied feasibility bands.
-    • Supports both the initial MAD-trim flow and (optionally) sigma/relative
-      thresholds via tol_sigma/rel_tol/abs_tol if provided.
     """
     K = _as_np1d(K, "K")
     C = _as_np1d(call, "call")
@@ -203,7 +258,6 @@ def implied_future_from_option_prices(
     if finite_mask.sum() < 2:
         return None, np.zeros(n, dtype=bool)
 
-    # Canonicalize discount clip bounds ONCE for this call
     c_lo, c_hi = clip_D if clip_D[0] <= clip_D[1] else (clip_D[1], clip_D[0])
 
     idx = np.nonzero(finite_mask)[0]
@@ -224,19 +278,16 @@ def implied_future_from_option_prices(
 
     for _ in range(max_trim_iters):
         resid = yv - (a_hat + b_hat * Kv)
-        if tol_sigma is not None or rel_tol is not None or abs_tol is not None:
+        if (tol_sigma is not None) or (rel_tol is not None) or (abs_tol is not None):
             # Sigma/relative thresholding
             scale = _mad(resid[inlier], eps)
-            # conservative fallback scale
             if not np.isfinite(scale) or scale <= eps:
                 scale = max(np.median(np.abs(resid[inlier])), eps)
             sig = tol_sigma if tol_sigma is not None else trim_mad_mult
             a_tol = abs_tol if abs_tol is not None else 0.0
             r_tol = rel_tol if rel_tol is not None else 0.0
             thresh = sig * scale
-            allow = np.abs(resid) <= (
-                thresh + a_tol + r_tol * np.maximum(np.abs(yv), eps)
-            )
+            allow = np.abs(resid) <= (thresh + a_tol + r_tol * np.maximum(np.abs(yv), eps))
         else:
             # Legacy MAD trimming
             thresh = _mad_threshold(resid[inlier], mult=trim_mad_mult, eps=eps)
@@ -263,25 +314,19 @@ def implied_future_from_option_prices(
 
     # D interval from pairwise slopes on inliers
     q_low, q_high = slope_quantiles
-    D_min, D_max = _feasible_D_band_from_pairwise_slopes(
+    raw_D_min, raw_D_max = _feasible_D_band_from_pairwise_slopes(
         Kv[inlier], yv[inlier], q_low=q_low, q_high=q_high, clip_D=(c_lo, c_hi), eps=eps
     )
+
+    tiny = max(1e-12, 5 * eps)
+    D_min, D_max = _canon_D_band(raw_D_min, raw_D_max, D_hat, c_lo, c_hi, tiny)
 
     # Map D band to F band
     F_lo, F_hi = _forward_band_from_D_band(Kv[inlier], yv[inlier], D_min, D_max)
 
-    # --- Containment fixes against roundoff ---
-    tiny = max(1e-12, 5 * eps)
-    # Keep D_hat inside [D_min, D_max], preserve order and respect canonical clip
-    D_min = max(c_lo, min(D_min, D_hat + tiny))
-    D_max = min(c_hi, max(D_max, D_hat - tiny))
-    if D_min > D_max:  # extremely rare numerical flip; collapse to point
-        mid = float(np.clip(D_hat, c_lo, c_hi))
-        D_min = D_max = mid
-
-    if F_lo is None or F_hi is None or F_lo > F_hi:
-        # fallback: contain the point estimate
-        F_lo, F_hi = F_hat - tiny, F_hat + tiny
+    # Fallback: contain the point estimate tightly when mapping failed/empty
+    if (F_lo is None) or (F_hi is None) or (F_lo > F_hi):
+        F_lo, F_hi = (F_hat - tiny, F_hat + tiny)
     else:
         F_lo = float(min(F_lo, F_hat + tiny))
         F_hi = float(max(F_hi, F_hat - tiny))
@@ -301,21 +346,22 @@ def implied_future_from_option_prices(
 
     out_mask = _scatter_back_mask(finite_mask, idx, inlier)
 
-    # Optional plot kept minimal; best-effort and silent on errors.
+    # Optional plot: fully guarded in try/except to never leak plot errors
     if plot:
-        try:
-            import matplotlib.pyplot as plt  # type: ignore
+        
+        implied_future_from_option_prices_plot(
+            K=Kv,
+            C=C[idx],
+            P=P[idx],
+            inlier=inlier,
+            F_hat=F_hat,
+            F_bid=F_lo,
+            F_ask=F_hi,
+            D_min=D_min,
+            D_max=D_max,
+            D_display=(D_min + D_max) / 2,
+            ax=ax,
+        )
 
-            ax_ = ax if ax is not None else plt.gca()
-            Kp = Kv
-            yp = yv
-            ax_.scatter(Kp[~inlier], yp[~inlier], marker="x", label="outliers")
-            ax_.scatter(Kp[inlier], yp[inlier], s=16, label="inliers", alpha=0.85)
-            kr = np.linspace(Kp.min(), Kp.max(), 64)
-            yr = a_hat + (-D_hat) * kr
-            ax_.plot(kr, yr, label=f"fit: D={D_hat:.6f}, F={F_hat:.6f}")
-            ax_.legend(loc="best")
-        except Exception:
-            pass
 
     return result, out_mask
