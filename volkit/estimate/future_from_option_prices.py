@@ -7,7 +7,7 @@ import numpy as np
 
 __all__ = [
     "ImpliedFutureResult",
-    "implied_future_from_option_prices",
+    "estimate_future_from_option_quotes",
     "_constrained_ols_line",
     "_mad",
     "_mad_threshold",
@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 from .future_res import ImpliedFutureResult
-from .future_from_prices_plot import implied_future_from_option_prices_plot
+from .future_from_option_prices_plot import estimate_future_from_option_prices_plot
 
 # --------------------------- helpers (private) ---------------------------------
 
@@ -223,7 +223,7 @@ def _canon_D_band(
 # ------------------------------ public API -------------------------------------
 
 
-def implied_future_from_option_prices(
+def estimate_future_from_option_prices(
     K: np.ndarray,
     call: np.ndarray,
     put: np.ndarray,
@@ -355,7 +355,7 @@ def implied_future_from_option_prices(
     # Optional plot: fully guarded in try/except to never leak plot errors
     if plot:
 
-        implied_future_from_option_prices_plot(
+        estimate_future_from_option_prices_plot(
             K=Kv,
             C=C[idx],
             P=P[idx],

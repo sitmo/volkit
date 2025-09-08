@@ -13,11 +13,11 @@ from .pricing.future import (
     lambda_euro_future,
 )
 
-from .implied.future_from_quotes import implied_future_from_option_quotes
-from .implied.future_from_prices import implied_future_from_option_prices
-from .implied.future_res import ImpliedFutureResult
+from .estimate.future_from_option_quotes import estimate_future_from_option_quotes
+from .estimate.future_from_option_prices import estimate_future_from_option_prices
+from .estimate.future_res import ImpliedFutureResult
 
-from .implied.vol_future import implied_vol_euro_future
+from .estimate.vol_from_option_prices import estimate_vol_from_option_prices
 
 from .utils import discount_to_rate, rate_to_discount
 
@@ -33,9 +33,9 @@ __all__ = [
     "vanna_euro_future",
     "vomma_euro_future",
     "lambda_euro_future",
-    "implied_vol_euro_future",
-    "implied_future_from_option_quotes",
-    "implied_future_from_option_prices",
+    "estimate_vol_from_option_prices",
+    "estimate_future_from_option_quotes",
+    "estimate_future_from_option_prices",
     "ImpliedFutureResult",
     "discount_to_rate",
     "rate_to_discount",

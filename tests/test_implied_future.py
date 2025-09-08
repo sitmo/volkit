@@ -1,9 +1,8 @@
 # tests/test_implied_future.py
 import numpy as np
 
-from volkit import implied_future_from_option_quotes
-import volkit.implied.future_from_quotes as vf
-from volkit.implied.future_from_quotes import (
+from volkit import estimate_future_from_option_quotes
+from volkit.estimate.future_from_option_quotes import (
     _max_overlap_subset_at_D,
     _feasible_D_interval_for_subset,
     _width_candidate_discounts_for_subset,
@@ -13,6 +12,7 @@ from volkit.implied.future_from_quotes import (
     _choose_subset_with_fallback,
 )
 
+import volkit.estimate.future_from_option_quotes as vf
 
 EPS = 1e-12
 
@@ -57,13 +57,13 @@ def test_known_forward_and_band_all_rows_kept_and_nans_filtered(monkeypatch):
     Pa_with_nan = np.concatenate([Pa, [np.nan]])
 
     # Monkeypatch the plotting function so plot=True path runs without side effects
-    import volkit.implied.future_from_quotes as futmod
+    import volkit.estimate.future_from_option_quotes as futmod
 
     monkeypatch.setattr(
-        futmod, "implied_future_from_option_quotes_plot", lambda *a, **k: None
+        futmod, "estimate_future_from_option_quotes_plot", lambda *a, **k: None
     )
 
-    result, mask = implied_future_from_option_quotes(
+    result, mask = estimate_future_from_option_quotes(
         K_with_nan, Cb_with_nan, Ca_with_nan, Pb_with_nan, Pa_with_nan, plot=True
     )
 
@@ -102,7 +102,7 @@ def test_arb_row_is_excluded_and_valid_subset_has_overlap():
     Pa[j_bad] = 20.0  # ask >> bid
     # Now L = Cb - Pa ≈ -20, U = Ca - Pb ≈ -20; with eps it’s safely L > U
 
-    result, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
+    result, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
 
     # We should still get a result (feasible 2-strike subset)
     assert result is not None
@@ -122,7 +122,7 @@ def test_duplicate_strikes_only_returns_none_and_empty_mask():
     F_true, D_true = 4010.0, 0.94
     Cb, Ca, Pb, Pa = make_parity_consistent_quotes(K, F_true, D_true)
 
-    result, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
+    result, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
 
     assert result is None
     # The function returns an all-False mask in this early exit path
@@ -138,7 +138,7 @@ def test_no_overlap_anywhere_returns_none_and_no_selection():
     Pb = np.array([10.0, 10.0])
     Pa = np.array([11.0, 11.0])  # ask > bid (as usual), but with large spread
 
-    result, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
+    result, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
 
     # No feasible overlap depth >= 2 anywhere -> result None
     assert result is None
@@ -154,7 +154,7 @@ def test_tiny_input_less_than_two_finite_rows():
     Pb = np.array([0.9, np.nan])
     Pa = np.array([1.2, np.nan])
 
-    result, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
+    result, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa)
     assert result is None
     assert mask.shape == K.shape and not mask.any()
 
@@ -229,7 +229,7 @@ def test_best_depth_lt_2_empty_selection_mask_is_all_false():
     Pb = np.array([0.0, 0.0])
     Pa = np.array([0.0, 0.0])
 
-    res, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
+    res, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
     assert res is None
     assert mask.shape == (2,)
     assert mask.sum() == 0
@@ -258,7 +258,7 @@ def test_duplicate_strike_best_subset_triggers_continue_and_returns_none():
     Pb = np.array([Pb01[0], Pb01[1], Pb2])
     Pa = np.array([Pa01[0], Pa01[1], Pa2])
 
-    res, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
+    res, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
     assert res is None
     assert mask.shape == (3,)
     assert not mask.any()
@@ -283,7 +283,7 @@ def test_no_positive_D_candidates_picks_best_singleton_by_narrowest_band():
     Pa = np.array([Pa0, Pa1])
 
     # Act
-    res, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=EPS)
+    res, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=EPS)
 
     # Assert: no global overlap for any positive D -> res is None,
     # and mask has exactly the narrowest-band row marked True.
@@ -303,7 +303,7 @@ def test_no_positive_D_candidates_with_duplicate_only_rows_marks_none():
     Ca = np.array([0.20, 0.30])
     Pb = np.array([0.00, 0.00])
     Pa = np.array([0.00, 0.00])
-    res, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
+    res, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=1e-12)
     assert res is None
     # both rows valid, but only one distinct strike among valid rows → mark none
     assert mask.shape == (2,)
@@ -314,7 +314,7 @@ def test_no_positive_D_candidates_with_duplicate_only_rows_marks_none():
 
 def test_public_choice_none_path_returns_none_and_mask_all_false():
     """
-    Hit implied_future_from_option_quotes line 94->96:
+    Hit estimate_future_from_option_quotes line 94->96:
 
     - Have positive D candidates (via a third, INVALID row with very negative L,U
       to generate D > 0 in _critical_discounts).
@@ -331,7 +331,7 @@ def test_public_choice_none_path_returns_none_and_mask_all_false():
 
     # Ds will be positive due to (i=dup, j=invalid) cross-equalities,
     # but the only overlap subset at depth>=2 is (0,1) with duplicate Ks -> rejected.
-    res, mask = implied_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=EPS)
+    res, mask = estimate_future_from_option_quotes(K, Cb, Ca, Pb, Pa, eps=EPS)
 
     assert res is None
     assert mask.shape == (3,)
@@ -630,7 +630,7 @@ def test__choose_subset_with_fallback_handles_empty_D_candidates_via_monkeypatch
 
     # Sanity: without monkeypatch, an interval exists and D_cands would be non-empty
     S = np.array([0, 1], dtype=int)
-    assert vf._feasible_D_interval_for_subset(K, L, U, S, eps=EPS) is not None
+    assert _feasible_D_interval_for_subset(K, L, U, S, eps=EPS) is not None
 
     # Monkeypatch to force the empty-candidates branch
     monkeypatch.setattr(
@@ -639,7 +639,7 @@ def test__choose_subset_with_fallback_handles_empty_D_candidates_via_monkeypatch
         lambda *args, **kwargs: np.array([], dtype=float),
     )
 
-    choice = vf._choose_subset_with_fallback(
+    choice = _choose_subset_with_fallback(
         K,
         L,
         U,

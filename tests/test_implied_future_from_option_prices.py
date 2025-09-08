@@ -1,11 +1,11 @@
-# file: tests/test_implied_future_from_option_prices.py
+# file: tests/test_estimate_future_from_option_prices.py
 import math
 import numpy as np
 import pytest
 import matplotlib.pyplot as plt
 
-from volkit.implied.future_from_prices import (
-    implied_future_from_option_prices,
+from volkit.estimate.future_from_option_prices import (
+    estimate_future_from_option_prices,
     ImpliedFutureResult,
     _constrained_ols_line,
     _mad,
@@ -15,6 +15,7 @@ from volkit.implied.future_from_prices import (
     _count_distinct,
     _canon_D_band,
 )
+
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +50,7 @@ def test_perfect_parity_basic(rng):
     F_true = 101.5
     C, P = _make_synthetic_prices(K, D_true, F_true)
 
-    res, mask = implied_future_from_option_prices(K, C, P)
+    res, mask = estimate_future_from_option_prices(K, C, P)
     assert isinstance(res, ImpliedFutureResult)
     assert mask.shape == (n,) and mask.all()
     assert abs(res.D - D_true) < 1e-10
@@ -71,7 +72,7 @@ def test_outliers_are_removed_and_refit_is_stable(rng):
     C_noisy[out_idx[:3]] += 8.0
     C_noisy[out_idx[3:]] -= 5.0
 
-    res, mask = implied_future_from_option_prices(
+    res, mask = estimate_future_from_option_prices(
         K, C_noisy, P, tol_sigma=3.0, rel_tol=1e-3
     )
 
@@ -90,7 +91,7 @@ def test_insufficient_distinct_strikes_returns_none(rng):
     F_true = 100.0
     C, P = _make_synthetic_prices(K, D_true, F_true)
 
-    res, mask = implied_future_from_option_prices(K, C, P)
+    res, mask = estimate_future_from_option_prices(K, C, P)
     assert res is None
     assert mask.shape == (n,)
     assert not mask.any()
@@ -103,7 +104,7 @@ def test_clamping_of_D_bounds(rng):
     P = 5.0 + 0.02 * np.maximum(0.0, K - 120)
     C = P + y
 
-    res, mask = implied_future_from_option_prices(K, C, P)
+    res, mask = estimate_future_from_option_prices(K, C, P)
 
     assert isinstance(res, ImpliedFutureResult)
     assert 0.0 < res.D <= 1.0
@@ -118,7 +119,7 @@ def test_positive_slope_case_clamps_to_eps(rng):
     P = np.full_like(K, 2.0)
     C = P + y
 
-    res, mask = implied_future_from_option_prices(K, C, P, eps=1e-9)
+    res, mask = estimate_future_from_option_prices(K, C, P, eps=1e-9)
     assert isinstance(res, ImpliedFutureResult)
     assert res.D >= 1e-9
     # bands contain point
@@ -131,7 +132,7 @@ def test_duplicate_strikes_are_collapsed(rng):
     C, P = _make_synthetic_prices(K, D_true, F_true)
     C[1] += 4.0
 
-    res, mask = implied_future_from_option_prices(K, C, P)
+    res, mask = estimate_future_from_option_prices(K, C, P)
     assert abs(res.D - D_true) < 5e-3
     assert abs(res.F - F_true) < 0.2
     assert mask.sum() >= 4
@@ -143,7 +144,7 @@ def test_plot_branch_executes(rng):
     C, P = _make_synthetic_prices(K, D_true, F_true)
 
     fig, ax = plt.subplots()
-    res, mask = implied_future_from_option_prices(K, C, P, plot=True, ax=ax)
+    res, mask = estimate_future_from_option_prices(K, C, P, plot=True, ax=ax)
     assert isinstance(res, ImpliedFutureResult)
     plt.close(fig)
 
@@ -153,7 +154,7 @@ def test_band_monotonicity(rng):
     D_true, F_true = 0.92, 103.5
     C, P = _make_synthetic_prices(K, D_true, F_true)
 
-    res, mask = implied_future_from_option_prices(K, C, P)
+    res, mask = estimate_future_from_option_prices(K, C, P)
     assert res.D_min - 1e-15 <= res.D <= res.D_max + 1e-15
     assert res.F_bid - 1e-15 <= res.F <= res.F_ask + 1e-15
 
@@ -167,14 +168,14 @@ def test_api_rejects_non_1d_and_length_mismatch():
     P = np.array([0.5, 0.5, 0.5])
 
     with pytest.raises(ValueError):
-        implied_future_from_option_prices(K, C, P)
+        estimate_future_from_option_prices(K, C, P)
 
     # length mismatch
     K = np.array([90.0, 100.0, 110.0])
     C = np.array([1.0, 2.0])  # shorter
     P = np.array([0.5, 0.6, 0.7])
     with pytest.raises(ValueError):
-        implied_future_from_option_prices(K, C, P)
+        estimate_future_from_option_prices(K, C, P)
 
 
 def test_api_finite_mask_too_small_returns_none():
@@ -183,7 +184,7 @@ def test_api_finite_mask_too_small_returns_none():
     C = np.array([1.0, 2.0, 3.0])
     P = np.array([0.5, 0.5, 0.5])
 
-    res, mask = implied_future_from_option_prices(K, C, P)
+    res, mask = estimate_future_from_option_prices(K, C, P)
     assert res is None
     assert mask.shape == (3,) and not mask.any()
 
@@ -194,7 +195,7 @@ def test_trim_loop_breaks_when_less_than_two_inliers():
     C, P = _make_prices(K, D=0.95, F=100.0)
     C = C + np.linspace(-10, 10, K.size)  # inject large non-linear noise
 
-    res, mask = implied_future_from_option_prices(
+    res, mask = estimate_future_from_option_prices(
         K, C, P, tol_sigma=0.0, abs_tol=0.0, rel_tol=0.0
     )
     # Function should *not* crash and should still return a result or None with a mask
@@ -210,7 +211,7 @@ def test_negative_D_hat_returns_none_when_clip_allows():
     P = np.full_like(K, 1.0)
     C = P + y
 
-    res, mask = implied_future_from_option_prices(K, C, P, clip_D=(-np.inf, 1.0))
+    res, mask = estimate_future_from_option_prices(K, C, P, clip_D=(-np.inf, 1.0))
     assert res is None
     # finite_mask was all True, inliers start as all True, so scatter-back marks all
     assert mask.shape == (K.size,) and mask.all()
@@ -311,7 +312,7 @@ def test_post_trim_distinct_collapse_returns_none():
     y = np.array([0.0, 0.0, 10.0, -10.0, 20.0, -20.0])
     C = P + y
 
-    res, mask = implied_future_from_option_prices(
+    res, mask = estimate_future_from_option_prices(
         K, C, P, tol_sigma=0.0, abs_tol=0.0, rel_tol=0.0
     )
     assert res is None
@@ -324,7 +325,7 @@ def test_d_band_inverted_clip_produces_degenerate_result():
     C, P = _make_prices(K, D=D_true, F=F_true)
 
     clip = (1.0, 1e-6)  # inverted on purpose
-    res, mask = implied_future_from_option_prices(K, C, P, clip_D=clip)
+    res, mask = estimate_future_from_option_prices(K, C, P, clip_D=clip)
 
     assert isinstance(res, ImpliedFutureResult)
     assert mask.shape == (K.size,) and mask.all()
@@ -344,7 +345,7 @@ def test_trim_loop_completes_without_break_max_iter_1():
     C = C.copy()
     C[[0, 1, 18, 19]] += 25.0  # large outliers
 
-    res, mask = implied_future_from_option_prices(
+    res, mask = estimate_future_from_option_prices(
         K, C, P, tol_sigma=2.0, max_trim_iters=1
     )
     assert isinstance(res, ImpliedFutureResult)
@@ -362,7 +363,7 @@ def test_fallback_band_when_forward_intersection_is_empty():
     P = np.zeros_like(K)
     C = y.copy()
 
-    res, mask = implied_future_from_option_prices(
+    res, mask = estimate_future_from_option_prices(
         K, C, P, trim_mad_mult=1e12  # keep all inliers
     )
 
@@ -415,7 +416,7 @@ def test_sigma_scale_fallback_branch(rng):
     K = np.linspace(50, 150, 25)
     D_true, F_true = 0.94, 102.0
     C, P = _make_prices(K, D=D_true, F=F_true)
-    res, mask = implied_future_from_option_prices(K, C, P, tol_sigma=3.0)
+    res, mask = estimate_future_from_option_prices(K, C, P, tol_sigma=3.0)
     assert isinstance(res, ImpliedFutureResult)
     assert mask.all()
 
@@ -427,7 +428,7 @@ def test_trim_loop_breaks_on_no_change_inliers(rng):
     C, P = _make_prices(K, D=D_true, F=F_true)
     noise = 1e-8 * (K - K.mean())  # tiny, below MAD threshold
     C = C + noise
-    res, mask = implied_future_from_option_prices(
+    res, mask = estimate_future_from_option_prices(
         K, C, P, trim_mad_mult=3.5, max_trim_iters=5
     )
     assert isinstance(res, ImpliedFutureResult)

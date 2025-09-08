@@ -3,7 +3,7 @@ from volkit import price_euro_future, vega_euro_future
 from volkit.pricing.future import _broadcast_shape, _parse_cp
 
 
-def implied_vol_euro_future(
+def estimate_vol_from_option_prices(
     C, F, K, T, r, cp=1, tol=1e-8, max_iter=100, price_tol=1e-10, sigma_max=10.0
 ):
     """

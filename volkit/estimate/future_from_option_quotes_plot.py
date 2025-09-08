@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
-from volkit.implied.future_res import ImpliedFutureResult
+from volkit.estimate.future_res import ImpliedFutureResult
 
 
 def _per_strike_forward_quotes(
@@ -37,7 +37,7 @@ def _per_strike_forward_quotes(
     return F_lo, F_hi
 
 
-def implied_future_from_option_quotes_plot(
+def estimate_future_from_option_quotes_plot(
     K: np.ndarray,
     Cb: np.ndarray,
     Ca: np.ndarray,

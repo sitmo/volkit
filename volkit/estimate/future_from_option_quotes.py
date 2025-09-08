@@ -5,9 +5,9 @@ from typing import Optional, Tuple, List, Dict, Iterable, DefaultDict
 from collections import defaultdict
 import numpy as np
 
-from volkit.implied.future_res import ImpliedFutureResult
-from volkit.implied.future_from_quotes_plot import (
-    implied_future_from_option_quotes_plot,
+from volkit.estimate.future_res import ImpliedFutureResult
+from volkit.estimate.future_from_option_quotes_plot import (
+    estimate_future_from_option_quotes_plot,
 )
 
 
@@ -16,7 +16,7 @@ from volkit.implied.future_from_quotes_plot import (
 # ======================================================================
 
 
-def implied_future_from_option_quotes(
+def estimate_future_from_option_quotes(
     K: np.ndarray,
     call_bid: np.ndarray,
     call_ask: np.ndarray,
@@ -121,7 +121,7 @@ def implied_future_from_option_quotes(
     )
 
     if plot:
-        implied_future_from_option_quotes_plot(
+        estimate_future_from_option_quotes_plot(
             K, call_bid, call_ask, put_bid, put_ask, result, mask_out, ax=ax
         )
     return result, mask_out

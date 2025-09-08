@@ -36,9 +36,9 @@ Price Table with all Greeks <examples/strikes_table_with_greeks>
 Greeks: Analytic vs Numeric <examples/greeks_demo>
 Greeks: Surface Plots <examples/greeks_surfaces>
 Broadcasting Basics <examples/broadcasting>
-Implied Volatilities <examples/implied_vol>
-Implied Futures from Options Price <examples/implied_future_from_prices>
-Implied Futures from Options Quotes <examples/implied_future_from_quotes>
+Implied Volatilities <examples/estimate_vol_from_option_prices>
+Implied Futures from Options Price <examples/estimate_future_from_option_prices>
+Implied Futures from Options Quotes <examples/estimate_future_from_option_quotes>
 Datasets: SPXW <examples/spxw_dataset.ipynb>
 
 ```

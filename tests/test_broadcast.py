@@ -13,7 +13,7 @@ from volkit import (
     vanna_euro_future,
     vomma_euro_future,
     lambda_euro_future,
-    implied_vol_euro_future,
+    estimate_vol_from_option_prices,
 )
 
 # ------------------------------
@@ -147,7 +147,7 @@ def test_iv_broadcast_shape_and_equivalence(case_id):
 
     # Generate prices and recover IVs
     C = price_fn(F, K, T, r, sigma_true, cp)
-    iv = implied_vol_euro_future(C, F, K, T, r, cp)
+    iv = estimate_vol_from_option_prices(C, F, K, T, r, cp)
 
     # Shape check
     shape = np.broadcast(F, K, T, r, sigma_true, cp).shape
@@ -166,7 +166,7 @@ def test_iv_broadcast_shape_and_equivalence(case_id):
     for idx in np.ndindex(shape):
         C_ = float(price_fn(F2[idx], K2[idx], T2[idx], R2[idx], S2[idx], int(CP2[idx])))
         expected[idx] = float(
-            implied_vol_euro_future(
+            estimate_vol_from_option_prices(
                 C_,
                 float(F2[idx]),
                 float(K2[idx]),

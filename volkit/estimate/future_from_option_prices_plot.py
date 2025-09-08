@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def implied_future_from_option_prices_plot(
+def estimate_future_from_option_prices_plot(
     K: np.ndarray,
     C: np.ndarray,
     P: np.ndarray,

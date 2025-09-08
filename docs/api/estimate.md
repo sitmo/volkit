@@ -1,7 +1,7 @@
-# volkit.implied
+# volkit.estimate
 
 ```{eval-rst}
-.. automodule:: volkit.implied
+.. automodule:: volkit.estimate
    :members:
    :undoc-members:
    :show-inheritance:
