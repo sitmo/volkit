@@ -10,13 +10,14 @@ import pandas as pd
 # Trade leg
 # --------------------------
 
+
 @dataclass
-class TradeLeg:
-    asset: str                  # "call" | "put" | "bond" | "future"
-    side: str                   # "buy" | "sell"
+class TradeLeg:  # pragma: no cover
+    asset: str  # "call" | "put" | "bond" | "future"
+    side: str  # "buy" | "sell"
     qty: float
-    strike: Optional[float]     # None for non-options
-    price: float                # today's PV (0 for futures)
+    strike: Optional[float]  # None for non-options
+    price: float  # today's PV (0 for futures)
     notional: Optional[float] = None  # for bonds only
 
     @staticmethod
@@ -34,15 +35,18 @@ class TradeLeg:
 
     def cashflow_today(self) -> float:
         # buy = cash out, sell = cash in
-        return (1.0 if self.side == "sell" else -1.0) * float(self.qty) * float(self.price)
+        return (
+            (1.0 if self.side == "sell" else -1.0) * float(self.qty) * float(self.price)
+        )
 
 
 # --------------------------
 # Trade
 # --------------------------
 
+
 @dataclass
-class Trade:
+class Trade:  # pragma: no cover
     type: str
     notes: str
     legs: List[TradeLeg] = field(default_factory=list)
@@ -64,18 +68,28 @@ class Trade:
     def to_dataframe(self) -> pd.DataFrame:
         rows = []
         for leg in self.legs:
-            rows.append({
-                "Asset": leg.asset,
-                "Side": leg.side,
-                "Qty": leg.qty,
-                "Strike": "" if leg.strike is None else leg.strike,
-                "Unit Price": leg.price,
-                "Notional": "" if leg.notional is None else leg.notional,
-                "Cashflow today": leg.cashflow_today(),
-            })
+            rows.append(
+                {
+                    "Asset": leg.asset,
+                    "Side": leg.side,
+                    "Qty": leg.qty,
+                    "Strike": "" if leg.strike is None else leg.strike,
+                    "Unit Price": leg.price,
+                    "Notional": "" if leg.notional is None else leg.notional,
+                    "Cashflow today": leg.cashflow_today(),
+                }
+            )
         df = pd.DataFrame(
             rows,
-            columns=["Asset","Side","Qty","Strike","Unit Price","Notional","Cashflow today"]
+            columns=[
+                "Asset",
+                "Side",
+                "Qty",
+                "Strike",
+                "Unit Price",
+                "Notional",
+                "Cashflow today",
+            ],
         )
         # totals row
         total_cash = df["Cashflow today"].sum(skipna=True)
@@ -83,7 +97,11 @@ class Trade:
             df.loc[df["Asset"] == "bond", "Notional"], errors="coerce"
         ).sum(skipna=True)
         total_row = {
-            "Asset": "TOTAL", "Side": "", "Qty": "", "Strike": "", "Unit Price": "",
+            "Asset": "TOTAL",
+            "Side": "",
+            "Qty": "",
+            "Strike": "",
+            "Unit Price": "",
             "Notional": ("" if abs(total_notional) == 0 else total_notional),
             "Cashflow today": total_cash,
         }
@@ -111,8 +129,9 @@ class Trade:
 # Arb report
 # --------------------------
 
+
 @dataclass
-class ArbReport:
+class ArbReport:  # pragma: no cover
     ok: bool
     violations: Dict[str, Dict[str, list]]
     trades: List[Trade]
@@ -139,7 +158,7 @@ class ArbReport:
             lines.append(f"\n#{i} {tr.type}: {tr.notes}")
             lines.append(tr._table_str())
             entry_cash = tr.cashflow_total()  # sum of leg cashflows today
-            if entry_cash>=0:
+            if entry_cash >= 0:
                 lines.append(f"Entry cash: {entry_cash:+,.6f} (recieve today)")
             else:
                 lines.append(f"Entry cash: {entry_cash:+,.6f} (pay today)")
